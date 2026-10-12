@@ -67,3 +67,5 @@ Limits: metadata eligibility without full decoding/extraction, 256-stream cap an
 Next Phase 2 slice: PySceneDetect scene detection using the selected video via Media Application contracts, persisted time ranges and cancellation/recovery/owned fixtures. No audio/subtitle extraction, scene processing, AI, Burmese TTS, rendering, dashboard or publishing is implemented here.
 
 Historical slice evidence. Latest full-suite verification: [Phase 2 scenes](phase-2-scenes-verification.md).
+
+Historical slice evidence. Latest full-suite verification: [Phase 2 audio](phase-2-audio-verification.md).

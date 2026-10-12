@@ -1,5 +1,7 @@
 // Subprocess fault fixture only. Never used by the production import executor.
-var path = args[^1];
+if (args.Contains("-version")) { Console.WriteLine("ffmpeg version fault-fixture"); return; }
+var inputIndex = Array.IndexOf(args, "-i");
+var path = inputIndex >= 0 ? args[inputIndex + 1] : args[^1];
 if (path.EndsWith("flood.py", StringComparison.Ordinal))
 {
     Console.Write(new string('x', 200_000)); await Task.Delay(TimeSpan.FromSeconds(60)); return;

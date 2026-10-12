@@ -26,3 +26,5 @@ Readiness is reported by API; job state, WorkerId, lease expiry and audit expose
 
 
 For scene jobs, install the pinned Python environment explicitly for the service deployment and set Scenes__PythonPath to its executable, accessible to the worker identity. Publish includes Scenes/scene_runner.py and requirements.txt. Apply VideoSceneAnalysis with the migration role before restarting upgraded hosts. Confirm configured trusted-root read permissions and interpreter execution permissions; no service installation/SCM acceptance was performed in this scene slice. Resource limits and error behavior: ../api/scene-analysis.md.
+
+Selected-audio artifacts require a trusted separate Audio__Root visible to API/worker accounts and an actual worker-accessible Audio__FfmpegPath. Apply VideoAudioExtraction before restarting upgraded hosts. Preserve both artifact tree and database in backup/restore; prevent external modification of managed files. No system tool/service installation or administrative SCM acceptance was performed. See ../api/audio-extraction.md for bounds/cleanup/limits.

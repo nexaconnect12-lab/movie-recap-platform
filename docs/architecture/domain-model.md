@@ -33,3 +33,5 @@ MediaStreamInfo retains global index/category/reported type, codec/language/opti
 
 
 Phase 2 VideoProcessing adds SceneAnalysis bound to import/asset/hash/size, inventory/selection versions, chosen global video index, settings/operator/request key and job. SceneDetection validates real runtime provenance, normalized PTS duration/offset/VFR and contiguous complete frame/time coverage. MovieScene stores immutable zero-based start/exclusive-end frames and seconds with an ordinal. Analysis completion is once-only; history remains when a choice changes. Application coordinates Media source verification and Jobs fenced lifecycle through contracts. See ADR 0008.
+
+AudioExtraction binds import/asset/hash/size, inventory/selection versions, chosen audio index, actor/key/retry budget/profile and job. Completion is once-only, with actual FFmpeg version, artifact token/hash/bytes and samples; duration is samples/16000. ExtractedAudio/AudioArtifact validate bounded positive samples and exact canonical WAV length. Audio remains derived fixed-profile local content; it does not grant publication rights or preserve source PTS/video alignment. See ADR 0009.

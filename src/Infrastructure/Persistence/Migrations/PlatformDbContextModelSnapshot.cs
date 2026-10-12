@@ -480,6 +480,97 @@ namespace MovieRecap.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.AudioExtraction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ArtifactSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long?>("ArtifactSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("ArtifactToken")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AudioIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FfmpegVersion")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("ImportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("InventoryVersion")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("MaxAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Profile")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<long?>("Samples")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("SelectionVersion")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("SourceSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId")
+                        .IsUnique();
+
+                    b.HasIndex("ImportId", "CreatedAt");
+
+                    b.HasIndex("ImportId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.ToTable("AudioExtractions", "video", t =>
+                        {
+                            t.HasCheckConstraint("CK_Audio_Binding", "\"AudioIndex\" >= 0 AND \"SourceSizeBytes\" > 0 AND \"SourceSha256\" ~ '^[0-9a-f]{64}$' AND \"MaxAttempts\" BETWEEN 1 AND 5 AND \"Profile\" = 'wav-pcm-s16le-16000-mono-v1'");
+
+                            t.HasCheckConstraint("CK_Audio_Completion", "(\"CompletedAt\" IS NULL AND \"ArtifactToken\" IS NULL AND \"ArtifactSha256\" IS NULL AND \"ArtifactSizeBytes\" IS NULL AND \"Samples\" IS NULL AND \"FfmpegVersion\" IS NULL) OR (\"CompletedAt\" IS NOT NULL AND \"ArtifactToken\" IS NOT NULL AND \"ArtifactSha256\" IS NOT NULL AND \"ArtifactSha256\" ~ '^[0-9a-f]{64}$' AND \"Samples\" IS NOT NULL AND \"Samples\" > 0 AND \"Samples\" <= 2147483629 AND \"ArtifactSizeBytes\" IS NOT NULL AND \"ArtifactSizeBytes\" = 44 + 2 * \"Samples\" AND \"FfmpegVersion\" IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.MovieScene", b =>
                 {
                     b.Property<Guid>("AnalysisId")

@@ -63,7 +63,7 @@ public sealed class HostSmokeTests(ITestOutputHelper output)
         }
         finally { Directory.Delete(folder, recursive: true); }
     }
-    static Process Start(string name, string connection, string folder, int port, bool discovery = false)
+    static Process Start(string name, string connection, string folder, int port, bool discovery = false, string? audioRoot = null)
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root is not null && !File.Exists(Path.Combine(root.FullName, "MovieRecapPlatform.slnx"))) root = root.Parent;
@@ -83,6 +83,8 @@ public sealed class HostSmokeTests(ITestOutputHelper output)
         start.Environment["Discovery__Enabled"] = discovery ? "true" : "false";
         start.Environment["Discovery__RescanSeconds"] = "1";
         if (Environment.GetEnvironmentVariable("TEST_SCENE_PYTHON") is { } scenePython) start.Environment["Scenes__PythonPath"] = scenePython;
+        if (Environment.GetEnvironmentVariable("TEST_FFMPEG") is { } ffmpeg) start.Environment["Audio__FfmpegPath"] = ffmpeg;
+        if (audioRoot is not null) start.Environment["Audio__Root"] = audioRoot; else start.Environment.Remove("Audio__Root");
         return Process.Start(start)!;
     }
     [PostgresMediaFact]
@@ -258,6 +260,60 @@ public sealed class HostSmokeTests(ITestOutputHelper output)
         }
     }
     sealed record SceneIdentity(Guid Id, int VideoIndex, string? SceneDetectVersion);
+    [PostgresAudioFact]
+    public async Task Separate_hosts_extract_the_selected_audio_and_download_verified_artifact_with_history()
+    {
+        await using var database = new DatabaseFixture(); await database.Initialize();
+        var root = Path.Combine(Path.GetTempPath(), "recap_audio_hosts_" + Guid.NewGuid().ToString("N")); var library = Path.Combine(root, "library"); var artifacts = Path.Combine(root, "outputs"); Directory.CreateDirectory(library);
+        var processes = new List<Process>(); var drains = new List<Task<string>>();
+        try
+        {
+            var path = Path.Combine(library, "movie.mkv"); File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "owned-multistream.mkv"), path);
+            var original = File.ReadAllBytes(path); var stamp = File.GetLastWriteTimeUtc(path);
+            using var socket = new TcpListener(IPAddress.Loopback, 0); socket.Start(); var port = ((IPEndPoint)socket.LocalEndpoint).Port; socket.Stop();
+            foreach (var name in new[] { "MovieRecap.Api", "MovieRecap.Worker" })
+            {
+                var process = Start(name, database.Connection, library, port, audioRoot: artifacts); processes.Add(process); drains.Add(process.StandardOutput.ReadToEndAsync()); drains.Add(process.StandardError.ReadToEndAsync());
+            }
+            using var client = new HttpClient { BaseAddress = new($"http://127.0.0.1:{port}"), Timeout = TimeSpan.FromSeconds(10) };
+            client.DefaultRequestHeaders.Add("X-Api-Key", "integration-only-key-at-least-32-characters"); var deadline = DateTime.UtcNow.AddSeconds(40); var ready = false;
+            while (DateTime.UtcNow < deadline && !processes[0].HasExited)
+            {
+                try { ready = (await client.GetAsync("/health/ready")).IsSuccessStatusCode; } catch (HttpRequestException) { } catch (TaskCanceledException) { }
+                if (ready) break; await Task.Delay(100);
+            }
+            Assert.True(ready, "Audio smoke API failed readiness."); var imported = await Import(client, "movie.mkv"); Assert.Equal(JobStatus.Succeeded, imported.Job.Status);
+            var inventory = (await client.GetFromJsonAsync<StreamResponse>($"/api/media/imports/{imported.Import.Id}/streams", JsonOptions))!;
+            var selectedResponse = await client.PutAsJsonAsync($"/api/media/imports/{imported.Import.Id}/stream-selection", new SelectStreams(inventory.Selection.Version, 0, 3, null, "audio-operator")); Assert.Equal(HttpStatusCode.OK, selectedResponse.StatusCode);
+            var selection = (await selectedResponse.Content.ReadFromJsonAsync<SelectionResponse>(JsonOptions))!;
+            var response = await client.PostAsJsonAsync($"/api/media/imports/{imported.Import.Id}/audio-extractions", new RequestAudio("host-audio", selection.Version, "audio-operator", 1)); Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            var extraction = (await response.Content.ReadFromJsonAsync<AudioResponse>(JsonOptions))!; deadline = DateTime.UtcNow.AddSeconds(40);
+            while (extraction.Job.Status is JobStatus.Queued or JobStatus.Running)
+            {
+                Assert.True(DateTime.UtcNow < deadline, "Audio extraction did not finish."); await Task.Delay(100);
+                extraction = (await client.GetFromJsonAsync<AudioResponse>($"/api/video/audio-extractions/{extraction.Extraction.Id}", JsonOptions))!;
+            }
+            Assert.Equal(JobStatus.Succeeded, extraction.Job.Status); Assert.Equal(3, extraction.Extraction.AudioIndex); Assert.Equal(16000, extraction.Extraction.Samples); Assert.True(extraction.IsCurrentSelection);
+            Assert.StartsWith("ffmpeg version 9.0.2", extraction.Extraction.FfmpegVersion);
+            var download = await client.GetAsync($"/api/video/audio-extractions/{extraction.Extraction.Id}/artifact"); Assert.Equal(HttpStatusCode.OK, download.StatusCode);
+            var wav = await download.Content.ReadAsByteArrayAsync(); Assert.Equal(32044, wav.Length); Assert.True(AudioTests.Tone(wav, 880) > AudioTests.Tone(wav, 440) * 10);
+            Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(wav)), extraction.Extraction.ArtifactSha256);
+            var audit = (await client.GetFromJsonAsync<List<AuditResponse>>($"/api/jobs/{extraction.Job.Id}/audit"))!; Assert.Equal(new[] { "created", "started", "succeeded" }, audit.Select(x => x.Action));
+            Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"/api/media/imports/{imported.Import.Id}/stream-selection", new SelectStreams(selection.Version, 0, 2, null, "changed"))).StatusCode);
+            var old = (await client.GetFromJsonAsync<AudioResponse>($"/api/video/audio-extractions/{extraction.Extraction.Id}", JsonOptions))!; Assert.False(old.IsCurrentSelection); Assert.Equal(JobStatus.Succeeded, old.Job.Status);
+            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/video/audio-extractions/{extraction.Extraction.Id}/artifact")).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/video/audio-extractions/{extraction.Extraction.Id}/cleanup", null)).StatusCode); Assert.Single(Directory.GetFiles(artifacts, "*.wav", SearchOption.AllDirectories)); Assert.Empty(Directory.GetFiles(artifacts, "*.tmp", SearchOption.AllDirectories));
+            Assert.Equal(original, File.ReadAllBytes(path)); Assert.Equal(stamp, File.GetLastWriteTimeUtc(path));
+            output.WriteLine($"Audio smoke: extraction {extraction.Extraction.Id}, job {extraction.Job.Id}, selected stream 3 decoded 880 Hz into 16000 mono samples / 32044 WAV bytes, SHA-256 {extraction.Extraction.ArtifactSha256}, {extraction.Extraction.FfmpegVersion}; history/source preserved.");
+        }
+        finally
+        {
+            foreach (var process in processes) { if (!process.HasExited) { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(); } process.Dispose(); }
+            await Task.WhenAll(drains); foreach (var drain in drains) { var log = await drain; output.WriteLine(log[..Math.Min(log.Length, 8000)]); } Directory.Delete(root, true);
+        }
+    }
+    sealed record AudioIdentity(Guid Id, int AudioIndex, long? Samples, string? ArtifactSha256, string? FfmpegVersion);
+    sealed record AudioResponse(AudioIdentity Extraction, JobView Job, bool IsCurrentSelection);
     sealed record SceneRangeResponse(int StartFrame, int EndFrame, double StartSeconds, double EndSeconds);
     sealed record SceneResponse(SceneIdentity Analysis, JobView Job, bool IsCurrentSelection, List<SceneRangeResponse> Scenes);
     static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };

@@ -63,3 +63,5 @@ To activate manual import locally, stop/restart the existing hosts with the new 
 Next scoped work: remaining Phase 2 folder monitoring, fuller stream handling/preprocessing and scene detection. None of those, AI, Burmese TTS, rendering or publishing was implemented here. No service installation, production deployment or later phase acceptance is claimed.
 
 Historical slice evidence. Latest full-suite verification: [Phase 2 scenes](phase-2-scenes-verification.md).
+
+Historical slice evidence. Latest full-suite verification: [Phase 2 audio](phase-2-audio-verification.md).

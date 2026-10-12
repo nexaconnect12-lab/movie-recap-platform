@@ -67,3 +67,5 @@ Limits: metadata/readability-based discovery, trusted stable folders, reference-
 Next Phase 2 slice: fuller stream inspection/selection and PySceneDetect scene detection with owned fixtures. No stream preprocessing, scenes, AI, Burmese TTS, rendering, dashboard, publishing or later-phase functionality is implemented here.
 
 Historical slice evidence. Latest full-suite verification: [Phase 2 scenes](phase-2-scenes-verification.md).
+
+Historical slice evidence. Latest full-suite verification: [Phase 2 audio](phase-2-audio-verification.md).

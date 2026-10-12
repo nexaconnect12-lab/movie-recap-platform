@@ -5,3 +5,5 @@ Host separation permits interactive API and independent service workers without 
 
 
 Current Phase 2 also executes selected-video scene analysis: real PySceneDetect/PyAV, persisted PTS-derived ranges, bounded subprocesses, source verification and fenced atomic completion. See ../implementation/phase-2-scenes.md and phase-2-scenes-verification.md in that folder. Requires separately configured pinned Python dependencies. Extraction, thumbnails, semantic analysis, voice, rendering and publishing remain future.
+
+Current Phase 2 also includes source-preserving selected-audio extraction with actual FFmpeg and managed PCM WAV artifacts. Configure a separate trusted artifact root shared by API/worker. See ../implementation/phase-2-audio.md and ../api/audio-extraction.md. No transcription, generated speech or recap rendering is included.

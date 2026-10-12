@@ -9,7 +9,9 @@ Phase 2 stream slice: full real FFprobe inventories, immutable content metadata,
 
 Phase 2 scene slice: real PySceneDetect selected-video decode through PyAV, timestamp-derived persisted ranges/provenance, historical results and transactional fenced jobs. See phase-2-scenes.md and phase-2-scenes-verification.md.
 
-Next proposed task (remaining Phase 2): source-preserving selected-audio extraction with bounded FFmpeg execution, managed artifact storage/promotion/cleanup, source/selection binding, fenced jobs and owned fixtures. Artifact design and scope need separate confirmation. Other stream extraction/preprocessing remains separately scoped; AI/TTS/rendering/publishing remain later phases.
+Phase 2 audio slice: real selected-track FFmpeg decode into validated PCM WAV, owned temporary/promotion/cleanup lifecycle, source/selection binding, authenticated download/history and fenced jobs. See phase-2-audio.md and phase-2-audio-verification.md.
+
+Next proposed task (remaining Phase 2): source-bound scene thumbnails/frame sampling using managed artifacts, actual timestamp mapping, bounded execution and owned fixtures. Scope requires separate confirmation. Other extraction/preprocessing remains separately scoped; ASR/AI/TTS/rendering/publishing remain later phases.
 
 Phase 3: chunked ASR/frame analysis, grounded outline, recap generation/versioned editor/approval.
 Phase 4: Burmese language adapter, verified real TTS voice, chunks/normalization, aligned subtitles and exports.

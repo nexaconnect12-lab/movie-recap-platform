@@ -23,7 +23,7 @@ public sealed class ProcessingJob
 
     public static ProcessingJob Create(string kind, string key, int maxAttempts, DateTimeOffset now)
     {
-        if (kind is not ("foundation.database-check" or "media.manual-import" or "media.stream-inspection" or "video.scene-analysis")) throw new ArgumentException("Unsupported job kind.");
+        if (kind is not ("foundation.database-check" or "media.manual-import" or "media.stream-inspection" or "video.scene-analysis" or "video.audio-extraction")) throw new ArgumentException("Unsupported job kind.");
         if (string.IsNullOrWhiteSpace(key) || key.Length > 128) throw new ArgumentException("Invalid idempotency key.");
         if (maxAttempts is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(maxAttempts));
         return new()
@@ -46,6 +46,7 @@ public sealed class ProcessingJob
         if (Status != JobStatus.Running || LeaseToken != token || LeaseExpiresAt <= now)
             throw new JobConflictException("Execution lease is no longer owned.");
     }
+    public void RequireLease(Guid token, DateTimeOffset now) => Own(token, now);
     public Guid Start(string worker, DateTimeOffset now, TimeSpan lease)
     {
         if (Status is not (JobStatus.Queued or JobStatus.RetryWait) || AvailableAt > now || Attempts >= MaxAttempts)

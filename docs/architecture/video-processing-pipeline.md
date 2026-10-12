@@ -1,4 +1,4 @@
-# Video processing pipeline — import, selection and scenes implemented
+# Video processing pipeline — import, selection, scenes and audio implemented
 Stable authorized input → hash/probe → stream selection/black-bar and overlay analysis → scene detection/thumbnails/audio → edit timeline → FFmpeg render → probe/validate final output. Preserve the original file. Do not process files still being copied. Python/PySceneDetect is a bounded subprocess adapter, not embedded domain logic.
 
 Invoke tools without shell interpolation, constrain paths/resources, stream progress, terminate process trees on cancellation, retain stderr safely and record tool/version provenance. Removable selectable subtitles and authorized overlay edits are distinct from ownership-watermark concealment, which is prohibited.
@@ -13,3 +13,5 @@ Full stream inspection and explicit video/audio/subtitle selection persist throu
 
 The confirmed scene slice adds VideoProcessing-owned analysis/history/ranges and real ContentDetector processing. PyAV decodes the selected global video stream directly, retaining actual PTS-based end-exclusive ranges and first-frame offset, including VFR. No remux/extraction is performed. The read-only source is hashed before/after decode; completion rechecks selection and job lease and atomically saves all ranges/job/audit. Timeout/cancellation kills the Python process tree. Runtime/output/frame/pixel/duration/range caps bound execution; frame-cap progress is coarse. See ADR 0008 and ../api/scene-analysis.md. Thumbnails, audio/subtitle extraction, black-bar/overlay analysis and rendering remain unimplemented. Earlier paragraphs describe historical slices, not current scene capability.
 
+
+Selected-audio extraction now executes real FFmpeg against Media's explicitly chosen global audio index. Original source is held read-only and hashed twice; bounded raw PCM becomes validated 16 kHz mono 16-bit WAV. Attempt files promote without overwrite under lease/selection fences; database reference/job/audit commit atomically, and only committed references can be downloaded. Crash/rollback orphans are reference-aware cleanup targets; completed artifacts/history remain. See ADR 0009 and ../api/audio-extraction.md. Earlier descriptions are historical. Thumbnail/subtitle/black-bar/overlay/semantic processing and rendering remain future.

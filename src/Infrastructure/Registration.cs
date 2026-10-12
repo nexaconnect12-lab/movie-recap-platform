@@ -30,6 +30,10 @@ public static class Registration
         services.AddOptions<SceneOptions>().Bind(configuration.GetSection("Scenes")).Validate(x => x.IsValid(), "Invalid scene configuration").ValidateOnStart();
         services.AddSingleton<ISceneStore, PostgresSceneStore>(); services.AddSingleton<ISceneDetector, PySceneDetectAdapter>();
         services.AddSingleton<SceneService>(); services.AddSingleton<SceneExecutor>();
+        services.AddSingleton<ISelectedAudioAccess, SelectedAudioAccess>();
+        services.AddOptions<AudioOptions>().Bind(configuration.GetSection("Audio")).Validate(x => x.IsValid(), "Invalid audio configuration").ValidateOnStart();
+        services.AddSingleton<IAudioArtifacts, LocalAudioArtifacts>(); services.AddSingleton<IAudioExtractor, FfmpegAudioExtractor>(); services.AddSingleton<IAudioStore, PostgresAudioStore>();
+        services.AddSingleton<AudioService>(); services.AddSingleton<AudioExecutor>();
         services.AddHealthChecks().AddCheck<DatabaseHealth>("postgresql", tags: ["ready"]);
         return services;
     }
@@ -54,6 +58,7 @@ public sealed class DatabaseHealth(IDbContextFactory<PlatformDbContext> factory)
             await db.SelectionAudits.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             await db.SceneAnalyses.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             await db.MovieScenes.AsNoTracking().Select(x => x.Ordinal).Take(1).ToListAsync(ct);
+            await db.AudioExtractions.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             return HealthCheckResult.Healthy();
         }
         catch (Exception ex) when (ex is not OperationCanceledException) { return HealthCheckResult.Unhealthy("Database or schema unavailable."); }

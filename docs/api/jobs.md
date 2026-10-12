@@ -35,3 +35,5 @@ Use scripts/Smoke-Test.ps1 for a complete create → worker execution → succes
 
 
 Scene analysis uses internal `video.scene-analysis` jobs, created only through POST /api/media/imports/{id}/scene-analyses. Generic job creation rejects this kind and reserved `scene-analysis:` keys. Existing versioned pause/resume/cancel/retry and audit/status APIs apply; retries retain the original source/selection/settings binding. Python process-tree cancellation accompanies lease loss/operator interruption. Success is atomic with all scene ranges and audit. See [scene API](scene-analysis.md).
+
+Audio extraction uses internal video.audio-extraction jobs via POST /api/media/imports/{id}/audio-extractions; generic creation rejects its kind and reserved audio-extraction: keys. Existing pause/resume/cancel/retry/status/audit applies. Output is unique per lease, and only a fenced successful database reference exposes a download. Retry retains original selection/source binding; changed choices need a new extraction request. See [audio API](audio-extraction.md).

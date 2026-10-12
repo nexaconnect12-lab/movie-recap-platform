@@ -20,6 +20,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<SelectionAuditRecord> SelectionAudits => Set<SelectionAuditRecord>();
     public DbSet<SceneAnalysis> SceneAnalyses => Set<SceneAnalysis>();
     public DbSet<MovieScene> MovieScenes => Set<MovieScene>();
+    public DbSet<AudioExtraction> AudioExtractions => Set<AudioExtraction>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         var j = model.Entity<ProcessingJob>();
@@ -116,6 +117,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         var scene = model.Entity<MovieScene>(); scene.ToTable("MovieScenes", "video"); scene.HasKey(x => new { x.AnalysisId, x.Ordinal });
         scene.HasOne<SceneAnalysis>().WithMany().HasForeignKey(x => x.AnalysisId).OnDelete(DeleteBehavior.Restrict);
         scene.ToTable(t => t.HasCheckConstraint("CK_Scene_Range", "\"Ordinal\" >= 0 AND \"StartFrame\" >= 0 AND \"EndFrame\" > \"StartFrame\" AND \"StartSeconds\" >= 0 AND \"EndSeconds\" > \"StartSeconds\""));
+        var audio = model.Entity<AudioExtraction>(); audio.ToTable("AudioExtractions", "video"); audio.HasKey(x => x.Id); audio.Ignore(x => x.DurationSeconds);
+        audio.Property(x => x.SourceSha256).HasMaxLength(64); audio.Property(x => x.ArtifactSha256).HasMaxLength(64); audio.Property(x => x.FfmpegVersion).HasMaxLength(256);
+        audio.Property(x => x.IdempotencyKey).HasMaxLength(128); audio.Property(x => x.RequestedBy).HasMaxLength(256); audio.Property(x => x.Profile).HasMaxLength(64);
+        audio.HasIndex(x => new { x.ImportId, x.IdempotencyKey }).IsUnique(); audio.HasIndex(x => x.JobId).IsUnique(); audio.HasIndex(x => new { x.ImportId, x.CreatedAt });
+        audio.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_Audio_Binding", "\"AudioIndex\" >= 0 AND \"SourceSizeBytes\" > 0 AND \"SourceSha256\" ~ '^[0-9a-f]{64}$' AND \"MaxAttempts\" BETWEEN 1 AND 5 AND \"Profile\" = 'wav-pcm-s16le-16000-mono-v1'");
+            t.HasCheckConstraint("CK_Audio_Completion", "(\"CompletedAt\" IS NULL AND \"ArtifactToken\" IS NULL AND \"ArtifactSha256\" IS NULL AND \"ArtifactSizeBytes\" IS NULL AND \"Samples\" IS NULL AND \"FfmpegVersion\" IS NULL) OR (\"CompletedAt\" IS NOT NULL AND \"ArtifactToken\" IS NOT NULL AND \"ArtifactSha256\" IS NOT NULL AND \"ArtifactSha256\" ~ '^[0-9a-f]{64}$' AND \"Samples\" IS NOT NULL AND \"Samples\" > 0 AND \"Samples\" <= 2147483629 AND \"ArtifactSizeBytes\" IS NOT NULL AND \"ArtifactSizeBytes\" = 44 + 2 * \"Samples\" AND \"FfmpegVersion\" IS NOT NULL)");
+        });
     }
 }
 public sealed class DesignFactory : IDesignTimeDbContextFactory<PlatformDbContext>

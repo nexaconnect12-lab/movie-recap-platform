@@ -27,3 +27,5 @@ Scene fixtures generated with the local FFmpeg 9.0.2 bundle and `-n`, exclusivel
 - owned-scenes-offset.mkv: blue 160x90/10fps/2sec, `setpts=PTS+5/TB -c:v ffv1`; original PTS offset 5 seconds retained, normalized ranges begin at zero.
 
 Set TEST_SCENE_PYTHON to a real environment installed from src/Infrastructure/Scenes/requirements.txt. These files are technical scene-boundary test inputs, not extracted or rendered recap outputs. Tests verify original bytes and write timestamps remain unchanged.
+
+Audio extraction reuses owned-multistream.mkv: explicit global audio stream 3 is stereo 880 Hz, while default stream 2 is 440 Hz. Tests prove selection through output-frequency comparison and independently validate the derived mono/16 kHz/pcm_s16le WAV with real FFprobe. No new fixture or original input is overwritten. Set TEST_FFMPEG as well as TEST_FFPROBE/TEST_POSTGRES. PCM WAV test outputs live only in owned temporary artifact roots and are removed after acceptance.

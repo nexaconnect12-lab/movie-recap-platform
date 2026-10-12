@@ -20,3 +20,5 @@ Phase 2 stream changes were separately proposed and confirmed on 2026-10-13 (Asi
 
 
 Phase 2 scene changes were separately proposed and confirmed on 2026-10-13 (Asia/Singapore). Implement real PySceneDetect selected-video decoding through Media Application contracts, actual PTS ranges/provenance, bounded cancellable execution, additive Video storage and atomic fenced jobs/history. See phase-2-scenes.md and ADR 0008. Existing application hosts/database remain preserved; no extraction or later phases are included.
+
+Selected-audio extraction was separately proposed and confirmed on 2026-10-13 (Asia/Singapore). Extend VideoProcessing with real FFmpeg extraction, a fixed validated PCM WAV profile, source/selection binding and managed per-lease artifacts. Use reference-gated publication and orphan reconciliation around atomic fenced job/audit completion. See phase-2-audio.md and ADR 0009. Existing application hosts/database remain preserved; ASR and later phases are excluded.

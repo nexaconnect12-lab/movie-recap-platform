@@ -9,3 +9,5 @@ Stream preferences are per import, even when content inventory is shared, and so
 
 Publishing must re-check rights and approvals immediately before external action; expired or revoked grants block publication. Script/render changes invalidate dependent approvals where required. Preserve audit evidence. Do not remove attribution to disguise ownership or implement Content ID evasion. Transformative commentary is not assumed legal permission. Phase 1 imports/publishes no content and makes no copyright-free claim.
 
+
+Selected-audio WAV artifacts remain bound to the original import/asset/source and selection. Extraction preserves import-specific source/rights metadata and leaves rights Unreviewed. Authenticated local artifact download is available for analysis; no publication authorization or review/revocation service is implied. See ADR 0009 and ../api/audio-extraction.md.

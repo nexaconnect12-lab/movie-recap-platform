@@ -28,6 +28,17 @@ public interface ISelectedVideoTransaction
 {
     Task RequireAsync(SelectedVideoSnapshot snapshot, CancellationToken ct);
 }
+public sealed record SelectedAudioSnapshot(Guid ImportId, Guid AssetId, Guid InventoryVersion, Guid SelectionVersion,
+    int AudioIndex, string Sha256, long SizeBytes);
+public interface ISelectedAudioAccess
+{
+    Task<SelectedAudioSnapshot?> GetAsync(Guid importId, CancellationToken ct);
+    Task<IVerifiedMediaSource> OpenAsync(SelectedAudioSnapshot snapshot, CancellationToken ct);
+}
+public interface ISelectedAudioTransaction
+{
+    Task RequireAsync(SelectedAudioSnapshot snapshot, CancellationToken ct);
+}
 public interface IMediaSourceVerifier
 {
     Task<IVerifiedMediaSource> OpenAsync(StreamSource source, CancellationToken ct);

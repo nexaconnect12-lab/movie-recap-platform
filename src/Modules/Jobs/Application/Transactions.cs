@@ -7,4 +7,5 @@ public interface IJobTransaction
     Task<JobView> CreateAsync(CreateJob command, CancellationToken ct);
     Task<JobView?> GetAsync(Guid id, CancellationToken ct);
     Task CompleteAsync(JobLease lease, CancellationToken ct);
+    Task RequireLeaseAsync(JobLease lease, CancellationToken ct);
 }

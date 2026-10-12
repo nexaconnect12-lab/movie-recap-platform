@@ -5,7 +5,7 @@ Jobs, Media and VideoProcessing scene detection are executable. Future modules g
 |---|---|---|
 | Jobs | ProcessingJobs, AuditLogs (implemented); ProcessingSteps | 1, 2 |
 | Media | MediaAssets, MovieImports, import-scoped MediaRights, MediaDiscoveries, stream inventories/selections/audits/inspection jobs, manual import/discovery, real FFprobe and deduplication | 2 |
-| Video Processing | SceneAnalyses/MovieScenes and real selected-video scene detection implemented; preprocessing artifacts remain future | 2 |
+| Video Processing | SceneAnalyses/MovieScenes, AudioExtractions, real selected-video scenes and selected-audio PCM WAV artifacts implemented; other preprocessing remains future | 2 |
 | AI Analysis | Transcripts, AIAnalysisResults, source evidence/confidence | 3 |
 | Recap Generation | RecapProjects, RecapScripts, RecapSegments | 3 |
 | Localization | LocalizationVersions, language policies | 4 |

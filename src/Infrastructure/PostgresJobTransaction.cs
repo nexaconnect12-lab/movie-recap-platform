@@ -24,6 +24,13 @@ internal sealed class PostgresJobTransaction(PlatformDbContext db, TimeProvider 
         if (job.Kind != lease.Kind) throw new JobConflictException("Job kind does not match.");
         job.Complete(lease.Token, clock.GetUtcNow()); Audit(job, "succeeded");
     }
+    public async Task RequireLeaseAsync(JobLease lease, CancellationToken ct)
+    {
+        var job = await db.Jobs.FromSqlInterpolated($"SELECT * FROM jobs.\"ProcessingJobs\" WHERE \"Id\" = {lease.JobId} FOR UPDATE").SingleOrDefaultAsync(ct)
+            ?? throw new JobConflictException("Job no longer exists.");
+        if (job.Kind != lease.Kind) throw new JobConflictException("Job kind does not match.");
+        job.RequireLease(lease.Token, clock.GetUtcNow());
+    }
     void Audit(ProcessingJob job, string action) => db.Audits.Add(new()
         { JobId = job.Id, Action = action, Status = job.Status, Attempt = job.Attempts, At = clock.GetUtcNow() });
 }
