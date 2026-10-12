@@ -1,0 +1,17 @@
+# ADR 0005 — Manual imports preserve sources and commit through Jobs contracts
+
+Status: accepted, 2026-10-12.
+
+Implement only the Phase 2 manual import slice. Media Domain/Application own import behavior and metadata contracts. Shared Infrastructure maps the module-owned `media` schema and implements file inspection, FFprobe, and persistence. Source files stay in configured local folders and are opened read-only. There is no copy, rename, delete, preprocessing or rendered output.
+
+`MovieImports` retain individual source, requester and rights assertions. `MediaAssets` deduplicate content by a unique lowercase SHA-256. `MediaRights` is an import-scoped immutable record in the Media schema for this slice, not a cross-module publication approval service. Duplicate content never inherits another source's authorization. All records remain unreviewed for publication, even when the caller declares Authorized. A future Rights module must consume explicit contracts and implement review/revocation before publishing.
+
+The Infrastructure composition supplies a Jobs Application `IJobTransaction` adapter using the same context/transaction as Media persistence. Media calls its create/get/complete contract without querying Jobs tables or referencing Jobs Domain. Job creation + import + rights commit atomically; successful completion + asset + import result + job audit commit atomically. Jobs owns lease validation and table access. Repeatable-read queries assemble consistent job/import/asset views. No cross-module EF navigation or foreign key is added between Media and Jobs.
+
+PostgreSQL transaction-scoped advisory locks serialize equal request keys and equal content hashes before evaluating unique constraints. Hash-lock collisions only reduce concurrency. Lock the hash before locking the job for completion, then verify the current unexpired execution token. Pause/cancel and completion serialize on the Jobs row: the first committed valid transition wins. A stale worker cannot write an asset or import result. The job's reserved idempotency namespace is derived from SHA-256 of the request key; the public generic job endpoint cannot create import jobs or use this namespace.
+
+Retryable effects are local read-only file/probe operations plus fenced transactions. FFprobe is shell-free, output/timeout bounded, network protocols excluded, and killed on cancellation. Windows FileShare.Read denies concurrent writers/deleters throughout inspection. Check size, write/creation times and path components across an observation interval, and hash again after probing to detect changed bytes. Source folders and their ancestors must be trusted, stable directories: reparse-point checks are not an OS sandbox against a hostile administrator or privileged concurrent filesystem replacement.
+
+Duration and frame-rate are finite/positive; a real non-cover-art video stream is required; audio is optional. MP4/MOV share FFprobe's demuxer family, so this slice does not distinguish their exact container brand. No media decoding or scene extraction is claimed. File hashing is performed twice for correctness, with a potential throughput cost on large movies. Long imports heartbeat progress at coarse stages and remain single-job per worker.
+
+Folder aliases and absolute configured roots must match across API and worker and remain stable while imports are pending. This slice stores references, not archived media; externally removing a file invalidates that location. Folder watching, scenes, AI, TTS, rendering and publishing remain outside scope.

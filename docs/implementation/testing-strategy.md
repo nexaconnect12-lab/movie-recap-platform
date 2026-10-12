@@ -1,0 +1,9 @@
+# Testing strategy
+Unit tests cover domain transitions, monotonic progress, lease fencing, retry/backoff/budget, cancellation/pause, validator and forbidden dependencies. Architecture assertions run in the unit test project; no extra runner is introduced.
+
+Integration tests use real PostgreSQL through TEST_POSTGRES. Per-test databases are generated, migrated and removed. Cover concurrent idempotent creation, exclusive claims, transaction audit, expiry recovery, API health/OpenAPI/auth/validation and optimistic versions. Never substitute EF InMemory/SQLite for PostgreSQL locking semantics. A missing test connection explicitly skips database tests and must be reported.
+
+Smoke-Test exercises two actual hosts via HTTP with a real worker and database. Build/publish checks verify Windows-compatible output; SCM administrative installation is a separate environment acceptance check. Future phases require owned media fixtures, bounded subprocess cancellation tests, provider contract tests and production failure injection. See verification.md for this execution's exact results.
+
+Phase 2 adds actual FFprobe checks against owned synthetic fixture files and persisted manual import tests, plus an automated separate-process API/worker smoke. Set TEST_FFPROBE to a real executable. Pure PostgreSQL tests still require only TEST_POSTGRES; combined tests require both. The test-only ProbeProcessFixture exercises subprocess timeout, cancellation, output limits and nonzero exit, never successful media completion. Unit adapter checks cover lexical paths, missing/locked/empty/changing files and reparse points. Real database checks exercise equal-key/hash races, atomic rollback, independent rights, stale leases and retry recovery. All temporary media/db resources are uniquely named and cleaned by their owning test.
+

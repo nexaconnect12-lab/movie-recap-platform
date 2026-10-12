@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><ProjectReference Include="../Domain/MovieRecap.Media.Domain.csproj" /><ProjectReference Include="../../Jobs/Application/MovieRecap.Jobs.Application.csproj" /></ItemGroup></Project>

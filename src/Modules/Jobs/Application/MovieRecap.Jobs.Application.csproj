@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><ProjectReference Include="../Domain/MovieRecap.Jobs.Domain.csproj" /><PackageReference Include="FluentValidation" Version="12.0.0" /></ItemGroup></Project>

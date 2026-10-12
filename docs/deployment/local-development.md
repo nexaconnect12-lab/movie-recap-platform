@@ -1,0 +1,17 @@
+# Local development
+Use README's exact startup sequence in PowerShell 7. .NET SDK selection uses net10.0 and global.json with latestFeature roll-forward. Packages have explicit compatible versions; EF tooling matches the chosen EF version. OpenAPI.NET 2.7.5 is pinned to address GHSA-v5pm-xwqc-g5wc.
+
+Initialize-Local generates password/key only if credentials.xml does not exist. SecureString export uses Windows DPAPI, readable only by the same Windows user on that machine. Set-LocalEnvironment decrypts into current process environment; do not print the environment or commit local secrets. PostgreSQL image requires a password, binds loopback port 54329, retains data in a named volume and has a readiness check. Load environment before any compose command.
+
+API binds 127.0.0.1:5080; worker runs console-hosted locally and handles Ctrl+C. Worker options: Worker__PollSeconds 1–60 (default 2), Worker__LeaseSeconds 15–600 (default 60). One active job per worker process. Logging__FilePath optionally sets compact JSON rolling log files. No AI/FFmpeg/Python prerequisites in Phase 1.
+
+Manual configuration on other platforms: set ConnectionStrings__Platform and Security__ApiKey (minimum 32 chars) for API; connection and Worker settings for worker. Use a development database only. API shared key is not a production identity system.
+
+Test command: set TEST_POSTGRES to a local admin connection and run dotnet test MovieRecapPlatform.slnx -m:1. Integration tests create randomly named recap_test_* databases, migrate them, and drop only those generated names. They require CREATE DATABASE permission and never run against the main application database. Without TEST_POSTGRES, these tests are explicitly skipped.
+
+Troubleshooting: readiness 503 means database/schema unavailable. Verify compose health, credentials and EF migration. 401 means missing/wrong X-Api-Key. 409 means stale version or invalid transition. Pending jobs need a worker. Interrupted running jobs recover after lease expiry plus backoff. Maintain synchronized clocks. Changing password environment with an existing volume does not change the database role password.
+
+Phase 2 manual import additionally requires a real FFprobe executable and matching Media__Folders__<alias>/Media__FfprobePath settings in both hosts. See ../api/media-imports.md. Apply ManualMediaImport before starting new hosts; readiness checks the media tables as well as Jobs. Folder roots are trusted stable local paths; original files remain in place. No AI/Python/rendering dependencies are introduced by manual import.
+
+For the full test suite, set TEST_FFPROBE as well as TEST_POSTGRES. If normal Debug binaries are locked by running hosts, dot-source scripts/Set-Phase2VerificationEnvironment.ps1 to isolate SDK artifact output, then build/test normally. It loads the existing local protected environment, sets the test connection unless already provided, and discovers the verification tool bundle if TEST_FFPROBE is unset. It starts no services and applies no migrations to the application database. Tests use only their generated disposable databases, including separate API/worker smoke processes.
+
