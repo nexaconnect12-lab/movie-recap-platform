@@ -11,6 +11,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<MovieImport> Imports => Set<MovieImport>();
     public DbSet<MediaAsset> Assets => Set<MediaAsset>();
     public DbSet<ImportRightsRecord> ImportRights => Set<ImportRightsRecord>();
+    public DbSet<MediaDiscovery> Discoveries => Set<MediaDiscovery>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         var j = model.Entity<ProcessingJob>();
@@ -38,6 +39,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         i.Property(x => x.IdempotencyKey).HasMaxLength(128); i.HasIndex(x => x.IdempotencyKey).IsUnique();
         i.Property(x => x.Folder).HasMaxLength(64); i.Property(x => x.RelativePath).HasMaxLength(1024);
         i.Property(x => x.Source).HasMaxLength(2048); i.Property(x => x.RequestedBy).HasMaxLength(256);
+        i.Property(x => x.ExpectedFingerprint).HasMaxLength(64);
         i.HasIndex(x => x.JobId).IsUnique();
         i.HasOne<MediaAsset>().WithMany().HasForeignKey(x => x.AssetId).OnDelete(DeleteBehavior.Restrict);
         i.ToTable(t => t.HasCheckConstraint("CK_Import_Completion", "(\"AssetId\" IS NULL AND \"CompletedAt\" IS NULL AND NOT \"IsDuplicate\") OR (\"AssetId\" IS NOT NULL AND \"CompletedAt\" IS NOT NULL)"));
@@ -58,6 +60,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             d.Property(x => x.PermittedPlatforms).HasMaxLength(2048); d.Property(x => x.Attribution).HasMaxLength(2048);
         });
         r.Navigation(x => x.Details).IsRequired();
+        var discovery = model.Entity<MediaDiscovery>(); discovery.ToTable("MediaDiscoveries", "media"); discovery.HasKey(x => x.Id);
+        discovery.Property(x => x.Folder).HasMaxLength(64); discovery.Property(x => x.RelativePath).HasMaxLength(1024);
+        discovery.Property(x => x.PathKey).HasMaxLength(64); discovery.Property(x => x.Fingerprint).HasMaxLength(64);
+        discovery.Property(x => x.Status).HasConversion<string>().HasMaxLength(32); discovery.Property(x => x.ErrorCode).HasMaxLength(128);
+        discovery.Property(x => x.Version).IsConcurrencyToken();
+        discovery.HasIndex(x => new { x.Folder, x.PathKey }).IsUnique().HasFilter("\"IsCurrent\"");
+        discovery.HasIndex(x => new { x.Status, x.FirstSeenAt });
+        discovery.HasOne<MovieImport>().WithMany().HasForeignKey(x => x.ImportId).OnDelete(DeleteBehavior.Restrict);
+        discovery.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_Discovery_Fingerprint", "\"SizeBytes\" >= 0 AND \"Fingerprint\" ~ '^[0-9a-f]{64}$'");
+            t.HasCheckConstraint("CK_Discovery_Submission", "(\"Status\" = 'Submitted' AND \"ImportId\" IS NOT NULL AND \"SubmittedVersion\" IS NOT NULL) OR (\"Status\" <> 'Submitted' AND \"ImportId\" IS NULL AND \"SubmittedVersion\" IS NULL)");
+        });
     }
 }
 public sealed class DesignFactory : IDesignTimeDbContextFactory<PlatformDbContext>

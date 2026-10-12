@@ -14,3 +14,5 @@ Assumptions: .NET 10 SDK available; PostgreSQL 17 local Docker instance; no exis
 
 Phase 2 manual-import changes were proposed after inspecting the existing solution/instructions and confirmed by the user on 2026-10-12. Scope and decisions are in phase-2.md and ADR 0005. Existing hosts were found running; verification uses separate artifact outputs and disposable databases/processes so those hosts and the persisted application database stay intact. No further phase is included.
 
+Phase 2 discovery changes were separately proposed and confirmed on 2026-10-12. Implement optional worker-hosted monitoring, persistent versioned candidates and inbox APIs, safe/stable observation and atomic explicit source/rights submission into existing jobs. Source fingerprints bind the later executor to the observed revision. See phase-2-discovery.md and ADR 0006. Verification again uses isolated artifact outputs and disposable databases; existing application hosts/database are preserved.
+

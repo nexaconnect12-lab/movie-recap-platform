@@ -1,4 +1,5 @@
 # Phase 2 manual import implementation
+This documents the original manual-import slice. Subsequent folder monitoring and discovery inbox are described in [the discovery slice](phase-2-discovery.md); stream/scene work remains deferred.
 
 Confirmed scope: configurable local media folders, rights/source records, stability/format validation, SHA-256 deduplication, real FFprobe metadata, migrations and fenced job integration. This is the first Phase 2 slice; it does not complete all Phase 2 work.
 

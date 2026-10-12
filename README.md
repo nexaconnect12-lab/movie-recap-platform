@@ -1,9 +1,11 @@
-# AI Movie Recap Automation Platform — Phase 2 manual import
+# AI Movie Recap Automation Platform — Phase 2 media import and discovery
 A .NET 10 modular monolith foundation with ASP.NET Core API, independently hosted Windows-compatible processing worker, PostgreSQL/EF Core migrations, structured JSON logs, health checks and a persistent job lifecycle.
 
 The worker executes `foundation.database-check` and `media.manual-import`. Manual import records rights/source metadata, validates stable MP4/MKV/MOV/AVI files, hashes SHA-256, deduplicates content, and extracts real FFprobe metadata. Original files remain in place. No AI account or paid service is needed. This implements the first Phase 2 slice; further capabilities are tracked in [the roadmap](docs/implementation/roadmap.md).
 
-Before importing, configure identical `Media__Folders__library` and `Media__FfprobePath` values in both hosts and apply the additive migration. See [manual import API/configuration](docs/api/media-imports.md), [Phase 2 implementation](docs/implementation/phase-2.md) and [Phase 2 verification](docs/implementation/phase-2-verification.md). Rights are recorded as caller assertions and remain unreviewed; import success grants no publishing permission.
+Before importing, configure identical `Media__Folders__library` and `Media__FfprobePath` values in both hosts and apply the additive migrations. See [manual import API/configuration](docs/api/media-imports.md), [manual-import implementation](docs/implementation/phase-2.md) and [manual-import verification](docs/implementation/phase-2-verification.md). Rights are recorded as caller assertions and remain unreviewed; import success grants no publishing permission.
+
+Optional worker-hosted folder monitoring adds a persistent discovery inbox. It observes safe readable/stable files and recovers missed events through periodic scans; an operator must submit source/rights metadata before any import job is created. Enable with `Discovery__Enabled=true` after configuring media roots. See [discovery inbox API/configuration](docs/api/discovery-inbox.md), [implementation](docs/implementation/phase-2-discovery.md) and [current verification](docs/implementation/phase-2-discovery-verification.md). Monitoring is disabled by default; original files remain untouched.
 
 ## Local startup (Windows PowerShell 7)
 Prerequisites: .NET 10 SDK and Docker Desktop with Linux containers. Run these commands from this folder:

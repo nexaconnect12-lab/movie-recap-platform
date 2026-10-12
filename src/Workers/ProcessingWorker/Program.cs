@@ -16,5 +16,6 @@ builder.Services.AddPlatform(builder.Configuration);
 builder.Services.AddOptions<WorkerOptions>().Bind(builder.Configuration.GetSection("Worker"))
     .Validate(x => x.PollSeconds is >= 1 and <= 60 && x.LeaseSeconds is >= 15 and <= 600, "Invalid polling or lease configuration").ValidateOnStart();
 builder.Services.AddHostedService<JobWorker>();
+builder.Services.AddHostedService<DiscoveryMonitor>();
 await builder.Build().RunAsync();
 

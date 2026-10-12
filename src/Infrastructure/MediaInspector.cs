@@ -18,7 +18,7 @@ public sealed class MediaInspector(IOptions<MediaOptions> options, FfprobeAdapte
 {
     readonly MediaOptions settings = options.Value;
     public void ValidateLocation(string folder, string relativePath) => _ = Resolve(folder, relativePath);
-    string Resolve(string folder, string relativePath)
+    internal string Resolve(string folder, string relativePath)
     {
         if (folder is null || !settings.Folders.TryGetValue(folder, out var root)) throw new ImportException("media-folder-not-configured");
         if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath) || relativePath.Contains(':') ||
@@ -44,7 +44,7 @@ public sealed class MediaInspector(IOptions<MediaOptions> options, FfprobeAdapte
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         { throw new ImportException("media-file-unavailable"); }
     }
-    public async Task<InspectedMedia> InspectAsync(string folder, string relativePath, CancellationToken ct)
+    public async Task<InspectedMedia> InspectAsync(string folder, string relativePath, CancellationToken ct, string? expectedFingerprint = null)
     {
         ct.ThrowIfCancellationRequested();
         var path = Resolve(folder, relativePath);
@@ -53,6 +53,8 @@ public sealed class MediaInspector(IOptions<MediaOptions> options, FfprobeAdapte
             // Read only, and deny concurrent writes/deletes for the whole inspection on Windows.
             await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 131072, FileOptions.Asynchronous | FileOptions.SequentialScan);
             var before = Snapshot(path);
+            if (expectedFingerprint is not null && DiscoveryFiles.Fingerprint(path, before) != expectedFingerprint)
+                throw new ImportException("discovery-source-changed");
             if (before.Length <= 0) throw new ImportException("empty-media-file");
             await Task.Delay(settings.StabilityMilliseconds, ct);
             Check();
@@ -74,7 +76,7 @@ public sealed class MediaInspector(IOptions<MediaOptions> options, FfprobeAdapte
         catch (IOException) { throw new ImportException("media-file-busy-or-unavailable"); }
         catch (UnauthorizedAccessException) { throw new ImportException("media-file-unavailable"); }
     }
-    static (long Length, DateTime LastWrite, DateTime Creation) Snapshot(string path)
+    internal static (long Length, DateTime LastWrite, DateTime Creation) Snapshot(string path)
     {
         var file = new FileInfo(path); return (file.Length, file.LastWriteTimeUtc, file.CreationTimeUtc);
     }

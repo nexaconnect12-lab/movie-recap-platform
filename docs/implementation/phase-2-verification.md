@@ -1,4 +1,5 @@
 # Phase 2 manual-import verification — 2026-10-12 (Asia/Singapore)
+This is the original manual-import acceptance snapshot. Current combined import/discovery acceptance is in [discovery verification](phase-2-discovery-verification.md).
 
 Scope: first Phase 2 manual-import slice only. Implementation was confirmed before pre-existing files were modified. No user media was altered. No source control checkout was present at this directory, so no commit/PR was created.
 

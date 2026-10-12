@@ -16,30 +16,38 @@ public sealed class PostgresImportStore(IDbContextFactory<PlatformDbContext> fac
         db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", ct);
     public async Task<ImportView> CreateAsync(ManualImport request, CancellationToken ct)
     {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var result = await CreateInTransactionAsync(db, request, null, ct);
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        return result;
+    }
+    internal async Task<ImportView> CreateInTransactionAsync(PlatformDbContext db, ManualImport request, string? expectedFingerprint, CancellationToken ct)
+    {
         request.Rights.Validate();
         // PostgreSQL timestamptz stores microseconds. Normalize before both equality checks and writes.
         if (request.Rights.ExpiresAt is { } expiry)
             request = request with { Rights = request.Rights with { ExpiresAt = expiry.AddTicks(-(expiry.Ticks % 10)) } };
-        await using var db = await factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
         await Lock(db, "import:" + request.IdempotencyKey, ct);
-        var existing = await db.Imports.SingleOrDefaultAsync(x => x.IdempotencyKey == request.IdempotencyKey, ct);
+        // Keep a replay's import/result stable while its job is read through the Jobs contract.
+        var existing = await db.Imports.FromSqlInterpolated($"SELECT * FROM media.\"MovieImports\" WHERE \"IdempotencyKey\" = {request.IdempotencyKey} FOR SHARE").SingleOrDefaultAsync(ct);
         if (existing is not null)
         {
             var rights = await db.ImportRights.SingleAsync(x => x.ImportId == existing.Id, ct);
             if (existing.Folder != request.Folder || existing.RelativePath != request.RelativePath || existing.Source != request.Source ||
-                existing.RequestedBy != request.RequestedBy || existing.MaxAttempts != request.MaxAttempts || rights.Details != request.Rights)
+                existing.RequestedBy != request.RequestedBy || existing.MaxAttempts != request.MaxAttempts || rights.Details != request.Rights || existing.ExpectedFingerprint != expectedFingerprint)
                 throw new ImportConflictException("Import idempotency key already used with different parameters.");
-            await tx.CommitAsync(ct);
-            return (await GetAsync(existing.Id, ct))!;
+            IJobTransaction existingJobs = new PostgresJobTransaction(db, clock);
+            var existingJob = await existingJobs.GetAsync(existing.JobId, ct) ?? throw new InvalidOperationException("Import job missing.");
+            var asset = existing.AssetId is { } assetId ? await db.Assets.SingleAsync(x => x.Id == assetId, ct) : null;
+            return new(existing, rights.Details, existingJob, asset);
         }
         IJobTransaction jobTransaction = new PostgresJobTransaction(db, clock);
         var jobKey = "media-import:" + Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(request.IdempotencyKey)));
         var job = await jobTransaction.CreateAsync(new("media.manual-import", jobKey, request.MaxAttempts), ct);
         var import = MovieImport.Create(job.Id, request.IdempotencyKey, request.Folder, request.RelativePath, request.Source,
-            request.RequestedBy, request.MaxAttempts, clock.GetUtcNow());
+            request.RequestedBy, request.MaxAttempts, clock.GetUtcNow(), expectedFingerprint);
         db.Imports.Add(import); db.ImportRights.Add(new() { ImportId = import.Id, Details = request.Rights });
-        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return new(import, request.Rights, job, null);
     }
     public async Task<ImportView?> GetAsync(Guid id, CancellationToken ct)

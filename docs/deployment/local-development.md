@@ -15,3 +15,5 @@ Phase 2 manual import additionally requires a real FFprobe executable and matchi
 
 For the full test suite, set TEST_FFPROBE as well as TEST_POSTGRES. If normal Debug binaries are locked by running hosts, dot-source scripts/Set-Phase2VerificationEnvironment.ps1 to isolate SDK artifact output, then build/test normally. It loads the existing local protected environment, sets the test connection unless already provided, and discovers the verification tool bundle if TEST_FFPROBE is unset. It starts no services and applies no migrations to the application database. Tests use only their generated disposable databases, including separate API/worker smoke processes.
 
+Folder monitoring is optional: apply MediaDiscoveryInbox, configure matching trusted media roots and enable Discovery__Enabled only in the worker. Defaults are disabled, RescanSeconds=30, MaxEntriesPerFolder=10000. The worker discovers candidates; explicit source/rights submission through the API is required to import. See ../api/discovery-inbox.md. Apply migrations and restart the hosts before enabling it; readiness verifies the discovery table even when monitoring is disabled.
+

@@ -3,7 +3,9 @@ Phase 1: foundation hosts, job module, PostgreSQL migration, API, Windows-compat
 
 Phase 2 manual import slice: implemented MediaAsset, import-scoped MediaRights and MovieImport with migrations, authenticated manual API, configured folders, stable-file/format validation, SHA-256 duplicates, real FFprobe metadata and job integration. See phase-2.md and phase-2-verification.md for evidence/limits.
 
-Next task (remaining Phase 2): folder monitoring, fuller stream handling/preprocessing and PySceneDetect integration. These are not implemented in the manual-import slice.
+Phase 2 discovery slice: optional worker folder monitoring, durable discovery revisions/inbox APIs, stable/readable observation, explicit rights/source submission and atomic import-job integration. See phase-2-discovery.md and phase-2-discovery-verification.md for evidence/limits. Monitoring does not automatically import files.
+
+Next task (remaining Phase 2): fuller stream inspection/selection/preprocessing and PySceneDetect scene detection. These are not implemented in the import/discovery slices.
 
 Phase 3: chunked ASR/frame analysis, grounded outline, recap generation/versioned editor/approval.
 Phase 4: Burmese language adapter, verified real TTS voice, chunks/normalization, aligned subtitles and exports.

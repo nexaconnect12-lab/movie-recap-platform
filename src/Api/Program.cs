@@ -9,6 +9,7 @@ using MovieRecap.Infrastructure;
 using MovieRecap.Jobs.Application;
 using MovieRecap.Jobs.Domain;
 using MovieRecap.Media.Application;
+using MovieRecap.Media.Domain;
 using Serilog;
 using Serilog.Formatting.Compact;
 
@@ -43,6 +44,22 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => fa
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = x => x.Tags.Contains("ready") });
 app.MapOpenApi();
 var imports = app.MapGroup("/api/media/imports").WithTags("Media imports");
+var discoveries = app.MapGroup("/api/media/discoveries").WithTags("Media discovery inbox");
+discoveries.MapGet("/", async (int? limit, DiscoveryStatus? status, IDiscoveryStore store, CancellationToken ct) =>
+    Results.Ok(await store.ListAsync(limit ?? 50, status, ct)));
+discoveries.MapGet("/{id:guid}", async (Guid id, IDiscoveryStore store, CancellationToken ct) =>
+{
+    var result = await store.GetAsync(id, ct); return result is null ? Results.NotFound() : Results.Ok(result);
+});
+discoveries.MapPost("/{id:guid}/dismiss", async (Guid id, VersionRequest request, IDiscoveryStore store, CancellationToken ct) =>
+{
+    var result = await store.DismissAsync(id, request.Version, ct); return result is null ? Results.NotFound() : Results.Ok(result);
+});
+discoveries.MapPost("/{id:guid}/import", async (Guid id, SubmitDiscovery request, DiscoveryService service, CancellationToken ct) =>
+{
+    var result = await service.SubmitAsync(id, request, ct);
+    return result is null ? Results.NotFound() : Results.Created($"/api/media/imports/{result.Import.Id}", result);
+});
 imports.MapPost("/", async (ManualImport request, ImportService service, CancellationToken ct) =>
 {
     var result = await service.CreateAsync(request, ct);

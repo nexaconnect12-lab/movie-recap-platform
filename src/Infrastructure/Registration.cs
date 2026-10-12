@@ -17,8 +17,12 @@ public static class Registration
         services.AddSingleton(TimeProvider.System); services.AddSingleton<IJobStore, PostgresJobStore>();
         services.AddSingleton<IValidator<CreateJob>, CreateJobValidator>(); services.AddSingleton<JobService>();
         services.AddOptions<MediaOptions>().Bind(configuration.GetSection("Media")).Validate(x => x.IsValid(), "Invalid media configuration").ValidateOnStart();
-        services.AddSingleton<FfprobeAdapter>(); services.AddSingleton<IMediaInspector, MediaInspector>();
-        services.AddSingleton<IImportStore, PostgresImportStore>(); services.AddSingleton<ImportService>(); services.AddSingleton<ImportExecutor>();
+        services.AddSingleton<FfprobeAdapter>(); services.AddSingleton<MediaInspector>(); services.AddSingleton<IMediaInspector>(s => s.GetRequiredService<MediaInspector>());
+        services.AddSingleton<PostgresImportStore>(); services.AddSingleton<IImportStore>(s => s.GetRequiredService<PostgresImportStore>());
+        services.AddSingleton<ImportService>(); services.AddSingleton<ImportExecutor>();
+        services.AddOptions<DiscoveryOptions>().Bind(configuration.GetSection("Discovery")).Validate(x => x.IsValid(), "Invalid discovery configuration").ValidateOnStart();
+        services.AddSingleton<DiscoveryFiles>(); services.AddSingleton<IDiscoveryFiles>(s => s.GetRequiredService<DiscoveryFiles>());
+        services.AddSingleton<IDiscoveryStore, PostgresDiscoveryStore>(); services.AddSingleton<DiscoveryService>();
         services.AddHealthChecks().AddCheck<DatabaseHealth>("postgresql", tags: ["ready"]);
         return services;
     }
@@ -35,6 +39,7 @@ public sealed class DatabaseHealth(IDbContextFactory<PlatformDbContext> factory)
             await db.Imports.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             await db.Assets.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             await db.ImportRights.AsNoTracking().Select(x => x.ImportId).Take(1).ToListAsync(ct);
+            await db.Discoveries.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             return HealthCheckResult.Healthy();
         }
         catch (Exception ex) when (ex is not OperationCanceledException) { return HealthCheckResult.Unhealthy("Database or schema unavailable."); }

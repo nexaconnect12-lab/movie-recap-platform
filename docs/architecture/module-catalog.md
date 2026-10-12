@@ -4,7 +4,7 @@ Jobs and the Phase 2 manual-import Media slice are executable. Future modules ge
 | Module | Planned entities / responsibilities | Phase |
 |---|---|---|
 | Jobs | ProcessingJobs, AuditLogs (implemented); ProcessingSteps | 1, 2 |
-| Media | MediaAssets, MovieImports, import-scoped MediaRights, real FFprobe metadata and deduplication (manual import implemented) | 2 |
+| Media | MediaAssets, MovieImports, import-scoped MediaRights, MediaDiscoveries, manual import/discovery inbox, real FFprobe metadata and deduplication | 2 |
 | Video Processing | MovieScenes, stream/probe analysis and preprocessing artifacts | 2 |
 | AI Analysis | Transcripts, AIAnalysisResults, source evidence/confidence | 3 |
 | Recap Generation | RecapProjects, RecapScripts, RecapSegments | 3 |

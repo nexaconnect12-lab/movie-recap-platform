@@ -24,7 +24,7 @@ public interface IImportStore
 public interface IMediaInspector
 {
     void ValidateLocation(string folder, string relativePath);
-    Task<InspectedMedia> InspectAsync(string folder, string relativePath, CancellationToken ct);
+    Task<InspectedMedia> InspectAsync(string folder, string relativePath, CancellationToken ct, string? expectedFingerprint = null);
 }
 public sealed class ImportService(IImportStore store, IMediaInspector inspector)
 {
@@ -32,6 +32,7 @@ public sealed class ImportService(IImportStore store, IMediaInspector inspector)
     {
         if (request is null || request.IdempotencyKey is null || !Regex.IsMatch(request.IdempotencyKey, "^[A-Za-z0-9._:-]{1,128}$") || request.Rights is null)
             throw new ImportException("invalid-import-request");
+        if (request.IdempotencyKey.StartsWith("discovery:", StringComparison.Ordinal)) throw new ImportException("reserved-discovery-import-key");
         try
         {
             request.Rights.Validate();
@@ -49,7 +50,7 @@ public sealed class ImportExecutor(IImportStore store, IMediaInspector inspector
     {
         var work = await store.GetWorkAsync(lease.JobId, ct);
         progress?.Invoke(10);
-        var media = await inspector.InspectAsync(work.Import.Folder, work.Import.RelativePath, ct);
+        var media = await inspector.InspectAsync(work.Import.Folder, work.Import.RelativePath, ct, work.Import.ExpectedFingerprint);
         ct.ThrowIfCancellationRequested();
         progress?.Invoke(90);
         await store.CompleteAsync(lease, media, ct);

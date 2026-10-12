@@ -38,17 +38,19 @@ public sealed class MovieImport
     public string Source { get; private set; } = "";
     public string RequestedBy { get; private set; } = "";
     public int MaxAttempts { get; private set; }
+    public string? ExpectedFingerprint { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public Guid? AssetId { get; private set; }
     public bool IsDuplicate { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
-    public static MovieImport Create(Guid jobId, string key, string folder, string path, string source, string requestedBy, int maxAttempts, DateTimeOffset now)
+    public static MovieImport Create(Guid jobId, string key, string folder, string path, string source, string requestedBy, int maxAttempts, DateTimeOffset now, string? expectedFingerprint = null)
     {
         if (jobId == Guid.Empty || string.IsNullOrWhiteSpace(key) || key.Length > 128 ||
             string.IsNullOrWhiteSpace(folder) || folder.Length > 64 || string.IsNullOrWhiteSpace(path) || path.Length > 1024 ||
             string.IsNullOrWhiteSpace(source) || source.Length > 2048 || string.IsNullOrWhiteSpace(requestedBy) || requestedBy.Length > 256 || maxAttempts is < 1 or > 5)
             throw new ArgumentException("Invalid import metadata.");
-        return new() { Id = Guid.NewGuid(), JobId = jobId, IdempotencyKey = key, Folder = folder, RelativePath = path,
+        if (expectedFingerprint is not null && expectedFingerprint.Length != 64) throw new ArgumentException("Invalid discovery fingerprint.");
+        return new() { Id = Guid.NewGuid(), JobId = jobId, IdempotencyKey = key, Folder = folder, RelativePath = path, ExpectedFingerprint = expectedFingerprint,
             Source = source, RequestedBy = requestedBy, MaxAttempts = maxAttempts, CreatedAt = now };
     }
     public void Complete(Guid assetId, bool duplicate, DateTimeOffset now)
