@@ -19,3 +19,11 @@ Stream-selection fixtures (generated in the authorized Phase 2 slice, from the s
 - `owned-caption.srt`: one synthetic one-second caption; no movie dialogue.
 
 Generation used `-n` to preserve existing inputs. Multi-stream mapping: `-map 0:v -map 1:v -map 2:a -map 3:a -map 4:a -map 5:s -c:v ffv1 -c:a pcm_s16le -ac:a:1 2 -c:s srt`; language/default/forced metadata is set explicitly. Cover remux uses `-map 0:v -map 1:v -c:v:0 copy -c:v:1 mjpeg -disposition:v:1 attached_pic`. These files are test fixtures, not a delivered stream-extraction/rendering workflow.
+
+Scene fixtures generated with the local FFmpeg 9.0.2 bundle and `-n`, exclusively from lavfi colors:
+- owned-scenes-cuts.mkv: red/white/black, each 2 seconds at 160x90/10fps, concat of three color inputs encoded FFV1. Known cuts at decoded frames 20 and 40, seconds 2 and 4; 60 frames/6 seconds total.
+- owned-scenes-multi.mkv: constant blue 80x60/10fps/6sec at global video 0 (default), and owned-scenes-cuts.mkv copied to global video 1 (nondefault). Mapping `-map 0:v -map 1:v -c:v:0 ffv1 -c:v:1 copy` tests actual chosen-stream decoding.
+- owned-scenes-vfr.mkv: red/blue 1-second 10fps inputs concatenated, with `setpts=if(lt(N,10),N/(10*TB),(1+(N-10)/5)/TB)`, `-fps_mode vfr -c:v ffv1`. Twenty frames, cut frame 10 at 1 second, exclusive end 2.9 seconds; timeline cannot be computed as frame ordinal divided by nominal FPS.
+- owned-scenes-offset.mkv: blue 160x90/10fps/2sec, `setpts=PTS+5/TB -c:v ffv1`; original PTS offset 5 seconds retained, normalized ranges begin at zero.
+
+Set TEST_SCENE_PYTHON to a real environment installed from src/Infrastructure/Scenes/requirements.txt. These files are technical scene-boundary test inputs, not extracted or rendered recap outputs. Tests verify original bytes and write timestamps remain unchanged.

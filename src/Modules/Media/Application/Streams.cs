@@ -13,7 +13,20 @@ public sealed record SelectionAuditView(long Sequence, Guid BeforeVersion, Guid 
     int VideoIndex, int? AudioIndex, int? SubtitleIndex, string RequestedBy, DateTimeOffset At);
 public interface IVerifiedMediaSource : IAsyncDisposable
 {
+    string LocalPath { get; }
     Task VerifyUnchangedAsync(CancellationToken ct);
+}
+public sealed record SelectedVideoSnapshot(Guid ImportId, Guid AssetId, Guid InventoryVersion, Guid SelectionVersion,
+    int VideoIndex, string Sha256, long SizeBytes, double NominalFrameRate);
+public interface ISelectedVideoAccess
+{
+    Task<SelectedVideoSnapshot?> GetAsync(Guid importId, CancellationToken ct);
+    Task<IVerifiedMediaSource> OpenAsync(SelectedVideoSnapshot snapshot, CancellationToken ct);
+}
+// Infrastructure composition calls this contract inside the same local transaction, with a selection lock.
+public interface ISelectedVideoTransaction
+{
+    Task RequireAsync(SelectedVideoSnapshot snapshot, CancellationToken ct);
 }
 public interface IMediaSourceVerifier
 {

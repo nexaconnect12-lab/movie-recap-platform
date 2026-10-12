@@ -7,7 +7,9 @@ Phase 2 discovery slice: optional worker folder monitoring, durable discovery re
 
 Phase 2 stream slice: full real FFprobe inventories, immutable content metadata, per-import explicit/versioned selection/audit, source-hash verification and real legacy reinspection jobs. See phase-2-streams.md and phase-2-streams-verification.md. No extraction/preprocessing is implied.
 
-Next task (remaining Phase 2): PySceneDetect scene detection using the selected video stream, with persisted time ranges, cancellation/recovery and owned fixtures. Stream extraction/preprocessing remains separately scoped work; AI/TTS/rendering/publishing remain later phases.
+Phase 2 scene slice: real PySceneDetect selected-video decode through PyAV, timestamp-derived persisted ranges/provenance, historical results and transactional fenced jobs. See phase-2-scenes.md and phase-2-scenes-verification.md.
+
+Next proposed task (remaining Phase 2): source-preserving selected-audio extraction with bounded FFmpeg execution, managed artifact storage/promotion/cleanup, source/selection binding, fenced jobs and owned fixtures. Artifact design and scope need separate confirmation. Other stream extraction/preprocessing remains separately scoped; AI/TTS/rendering/publishing remain later phases.
 
 Phase 3: chunked ASR/frame analysis, grounded outline, recap generation/versioned editor/approval.
 Phase 4: Burmese language adapter, verified real TTS voice, chunks/normalization, aligned subtitles and exports.

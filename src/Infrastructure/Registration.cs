@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using MovieRecap.Jobs.Application;
 using MovieRecap.Media.Application;
+using MovieRecap.VideoProcessing.Application;
 namespace MovieRecap.Infrastructure;
 
 public static class Registration
@@ -25,6 +26,10 @@ public static class Registration
         services.AddSingleton<IDiscoveryStore, PostgresDiscoveryStore>(); services.AddSingleton<DiscoveryService>();
         services.AddSingleton<IStreamStore, PostgresStreamStore>(); services.AddSingleton<IMediaSourceVerifier, MediaSourceVerifier>();
         services.AddSingleton<StreamService>(); services.AddSingleton<StreamInspectionExecutor>();
+        services.AddSingleton<ISelectedVideoAccess, SelectedVideoAccess>();
+        services.AddOptions<SceneOptions>().Bind(configuration.GetSection("Scenes")).Validate(x => x.IsValid(), "Invalid scene configuration").ValidateOnStart();
+        services.AddSingleton<ISceneStore, PostgresSceneStore>(); services.AddSingleton<ISceneDetector, PySceneDetectAdapter>();
+        services.AddSingleton<SceneService>(); services.AddSingleton<SceneExecutor>();
         services.AddHealthChecks().AddCheck<DatabaseHealth>("postgresql", tags: ["ready"]);
         return services;
     }
@@ -47,6 +52,8 @@ public sealed class DatabaseHealth(IDbContextFactory<PlatformDbContext> factory)
             await db.StreamSelections.AsNoTracking().Select(x => x.ImportId).Take(1).ToListAsync(ct);
             await db.StreamInspections.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             await db.SelectionAudits.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
+            await db.SceneAnalyses.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
+            await db.MovieScenes.AsNoTracking().Select(x => x.Ordinal).Take(1).ToListAsync(ct);
             return HealthCheckResult.Healthy();
         }
         catch (Exception ex) when (ex is not OperationCanceledException) { return HealthCheckResult.Unhealthy("Database or schema unavailable."); }

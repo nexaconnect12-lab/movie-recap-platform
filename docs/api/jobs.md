@@ -33,3 +33,5 @@ Invoke-RestMethod "http://127.0.0.1:5080/api/jobs/$($job.id)" -Headers $headers
 ```
 Use scripts/Smoke-Test.ps1 for a complete create → worker execution → success/audit check. Future API work: user roles, durable cursor pagination, rate limiting and production gateway/authentication.
 
+
+Scene analysis uses internal `video.scene-analysis` jobs, created only through POST /api/media/imports/{id}/scene-analyses. Generic job creation rejects this kind and reserved `scene-analysis:` keys. Existing versioned pause/resume/cancel/retry and audit/status APIs apply; retries retain the original source/selection/settings binding. Python process-tree cancellation accompanies lease loss/operator interruption. Success is atomic with all scene ranges and audit. See [scene API](scene-analysis.md).

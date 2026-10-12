@@ -24,3 +24,5 @@ Shutdown stops polling, cancels active execution and heartbeat, and leaves an in
 
 Readiness is reported by API; job state, WorkerId, lease expiry and audit expose processing status. Separate worker heartbeat/metrics endpoint and alerting remain hardening work. Scripts were syntax-reviewed and publish output verified; SCM installation/start/recovery requires a deployment test on an administrative Windows host.
 
+
+For scene jobs, install the pinned Python environment explicitly for the service deployment and set Scenes__PythonPath to its executable, accessible to the worker identity. Publish includes Scenes/scene_runner.py and requirements.txt. Apply VideoSceneAnalysis with the migration role before restarting upgraded hosts. Confirm configured trusted-root read permissions and interpreter execution permissions; no service installation/SCM acceptance was performed in this scene slice. Resource limits and error behavior: ../api/scene-analysis.md.

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using MovieRecap.Jobs.Domain;
 using MovieRecap.Media.Domain;
+using MovieRecap.VideoProcessing.Domain;
 namespace MovieRecap.Infrastructure;
 
 public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> options) : DbContext(options)
@@ -17,6 +18,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<StreamSelection> StreamSelections => Set<StreamSelection>();
     public DbSet<StreamInspectionRecord> StreamInspections => Set<StreamInspectionRecord>();
     public DbSet<SelectionAuditRecord> SelectionAudits => Set<SelectionAuditRecord>();
+    public DbSet<SceneAnalysis> SceneAnalyses => Set<SceneAnalysis>();
+    public DbSet<MovieScene> MovieScenes => Set<MovieScene>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         var j = model.Entity<ProcessingJob>();
@@ -100,6 +103,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         var audit = model.Entity<SelectionAuditRecord>(); audit.ToTable("StreamSelectionAudits", "media"); audit.HasKey(x => x.Id);
         audit.Property(x => x.Sequence).UseIdentityAlwaysColumn(); audit.HasIndex(x => x.Sequence).IsUnique(); audit.Property(x => x.RequestedBy).HasMaxLength(256);
         audit.HasIndex(x => x.ImportId); audit.HasOne<MovieImport>().WithMany().HasForeignKey(x => x.ImportId).OnDelete(DeleteBehavior.Restrict);
+        var analysis = model.Entity<SceneAnalysis>(); analysis.ToTable("SceneAnalyses", "video"); analysis.HasKey(x => x.Id);
+        analysis.Property(x => x.SourceSha256).HasMaxLength(64); analysis.Property(x => x.IdempotencyKey).HasMaxLength(128); analysis.Property(x => x.RequestedBy).HasMaxLength(256);
+        foreach (var field in new[] { nameof(SceneAnalysis.TimingMode), nameof(SceneAnalysis.SceneDetectVersion), nameof(SceneAnalysis.PyAvVersion), nameof(SceneAnalysis.OpenCvVersion), nameof(SceneAnalysis.PythonVersion), nameof(SceneAnalysis.Algorithm) }) analysis.Property(field).HasMaxLength(64);
+        analysis.HasIndex(x => new { x.ImportId, x.IdempotencyKey }).IsUnique(); analysis.HasIndex(x => x.JobId).IsUnique(); analysis.HasIndex(x => new { x.ImportId, x.CreatedAt });
+        analysis.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_Analysis_Binding", "\"VideoIndex\" >= 0 AND \"SourceSizeBytes\" > 0 AND \"SourceSha256\" ~ '^[0-9a-f]{64}$'");
+            t.HasCheckConstraint("CK_Analysis_Settings", "\"Threshold\" BETWEEN 1 AND 255 AND \"MinimumSceneFrames\" BETWEEN 1 AND 3000 AND \"MaxAttempts\" BETWEEN 1 AND 5");
+            t.HasCheckConstraint("CK_Analysis_Result", "(\"CompletedAt\" IS NULL AND \"TotalFrames\" IS NULL AND \"DurationSeconds\" IS NULL) OR (\"CompletedAt\" IS NOT NULL AND \"TotalFrames\" IS NOT NULL AND \"TotalFrames\" > 0 AND \"DurationSeconds\" IS NOT NULL AND \"DurationSeconds\" > 0)");
+        });
+        var scene = model.Entity<MovieScene>(); scene.ToTable("MovieScenes", "video"); scene.HasKey(x => new { x.AnalysisId, x.Ordinal });
+        scene.HasOne<SceneAnalysis>().WithMany().HasForeignKey(x => x.AnalysisId).OnDelete(DeleteBehavior.Restrict);
+        scene.ToTable(t => t.HasCheckConstraint("CK_Scene_Range", "\"Ordinal\" >= 0 AND \"StartFrame\" >= 0 AND \"EndFrame\" > \"StartFrame\" AND \"StartSeconds\" >= 0 AND \"EndSeconds\" > \"StartSeconds\""));
     }
 }
 public sealed class DesignFactory : IDesignTimeDbContextFactory<PlatformDbContext>

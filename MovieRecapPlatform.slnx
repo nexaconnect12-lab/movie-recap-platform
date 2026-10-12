@@ -21,6 +21,13 @@
   <Folder Name="/src/Modules/Media/Domain/">
     <Project Path="src/Modules/Media/Domain/MovieRecap.Media.Domain.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/VideoProcessing/" />
+  <Folder Name="/src/Modules/VideoProcessing/Application/">
+    <Project Path="src/Modules/VideoProcessing/Application/MovieRecap.VideoProcessing.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/VideoProcessing/Domain/">
+    <Project Path="src/Modules/VideoProcessing/Domain/MovieRecap.VideoProcessing.Domain.csproj" />
+  </Folder>
   <Folder Name="/src/Workers/" />
   <Folder Name="/src/Workers/ProcessingWorker/">
     <Project Path="src/Workers/ProcessingWorker/MovieRecap.Worker.csproj" />

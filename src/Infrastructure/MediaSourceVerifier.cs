@@ -29,6 +29,7 @@ public sealed class MediaSourceVerifier(MediaInspector inspector, IOptions<Media
     sealed class Verified(MediaInspector inspector, StreamSource source, string path, FileStream stream,
         (long Length, DateTime LastWrite, DateTime Creation) snapshot) : IVerifiedMediaSource
     {
+        public string LocalPath => path;
         public async Task VerifyUnchangedAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();

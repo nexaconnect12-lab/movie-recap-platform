@@ -3,3 +3,5 @@ The platform will orchestrate movie recap production on Windows, using modular d
 
 Host separation permits interactive API and independent service workers without splitting the database or deploying microservices. PostgreSQL is the queue/state source. Domain behavior is deterministic and independently testable. Future workers should share contracts while owning executor adapters. Detailed topology: software-architecture.md; future ownership: module-catalog.md; priorities: ../implementation/roadmap.md.
 
+
+Current Phase 2 also executes selected-video scene analysis: real PySceneDetect/PyAV, persisted PTS-derived ranges, bounded subprocesses, source verification and fenced atomic completion. See ../implementation/phase-2-scenes.md and phase-2-scenes-verification.md in that folder. Requires separately configured pinned Python dependencies. Extraction, thumbnails, semantic analysis, voice, rendering and publishing remain future.

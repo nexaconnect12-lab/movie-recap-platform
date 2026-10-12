@@ -65,3 +65,5 @@ Activation: apply migrations, rebuild/restart configured hosts with matching tru
 Limits: metadata eligibility without full decoding/extraction, 256-stream cap and bounded FFprobe output, two full source hash passes for a selection request (final pass holds a database row lock), potentially long HTTP calls on large media, trusted stable root configuration/reference-only storage, and immutable inventories that reject contradictory probe output rather than silently replacing existing choices. Rights/operator identity remain caller assertions under shared-key access; all rights stay Unreviewed for publishing. No administrative Windows Service acceptance or production deployment was performed.
 
 Next Phase 2 slice: PySceneDetect scene detection using the selected video via Media Application contracts, persisted time ranges and cancellation/recovery/owned fixtures. No audio/subtitle extraction, scene processing, AI, Burmese TTS, rendering, dashboard or publishing is implemented here.
+
+Historical slice evidence. Latest full-suite verification: [Phase 2 scenes](phase-2-scenes-verification.md).

@@ -10,6 +10,7 @@ using MovieRecap.Jobs.Application;
 using MovieRecap.Jobs.Domain;
 using MovieRecap.Media.Application;
 using MovieRecap.Media.Domain;
+using MovieRecap.VideoProcessing.Application;
 using Serilog;
 using Serilog.Formatting.Compact;
 
@@ -26,7 +27,7 @@ var app = builder.Build();
 app.UseExceptionHandler(error => error.Run(async context =>
 {
     var ex = context.Features.Get<IExceptionHandlerFeature>()!.Error;
-    var status = ex switch { BadHttpRequestException requestError => requestError.StatusCode, System.Text.Json.JsonException or ValidationException or ImportException => 400, JobConflictException or ImportConflictException or DbUpdateConcurrencyException => 409, _ => 500 };
+    var status = ex switch { BadHttpRequestException requestError => requestError.StatusCode, System.Text.Json.JsonException or ValidationException or ImportException or SceneException => 400, JobConflictException or ImportConflictException or DbUpdateConcurrencyException => 409, _ => 500 };
     if (status == 500) app.Logger.LogError(ex, "Request failed {TraceId}", context.TraceIdentifier);
     await Results.Problem(statusCode: status, title: status == 500 ? "Internal server error" : ex is BadHttpRequestException or System.Text.Json.JsonException ? "Invalid request body" : ex.Message,
         extensions: ex is ValidationException v ? new Dictionary<string, object?> { ["errors"] = v.Errors.Select(e => new { e.PropertyName, e.ErrorMessage }) } : null).ExecuteAsync(context);
@@ -44,6 +45,17 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => fa
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = x => x.Tags.Contains("ready") });
 app.MapOpenApi();
 var imports = app.MapGroup("/api/media/imports").WithTags("Media imports");
+imports.MapPost("/{id:guid}/scene-analyses", async (Guid id, RequestScenes request, SceneService service, CancellationToken ct) =>
+{
+    var result = await service.CreateAsync(id, request, ct);
+    return result is null ? Results.NotFound() : Results.Created($"/api/video/scene-analyses/{result.Analysis.Id}", result);
+});
+imports.MapGet("/{id:guid}/scene-analyses", async (Guid id, int? limit, IStreamStore media, ISceneStore store, CancellationToken ct) =>
+    await media.GetAsync(id, ct) is null ? Results.NotFound() : Results.Ok(await store.ListAsync(id, limit ?? 50, ct)));
+app.MapGet("/api/video/scene-analyses/{id:guid}", async (Guid id, ISceneStore store, CancellationToken ct) =>
+{
+    var result = await store.GetAsync(id, ct); return result is null ? Results.NotFound() : Results.Ok(result);
+}).WithTags("Scene analysis");
 imports.MapGet("/{id:guid}/streams", async (Guid id, IStreamStore store, CancellationToken ct) =>
 {
     var result = await store.GetAsync(id, ct); return result is null ? Results.NotFound() : Results.Ok(result);

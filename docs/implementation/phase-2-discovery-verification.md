@@ -65,3 +65,5 @@ Activation: apply migrations, rebuild/restart the hosts with matching trusted me
 Limits: metadata/readability-based discovery, trusted stable folders, reference-only media storage, periodic latency and bounded scans, historical rows without retention/cursor pagination UI. A privileged writer preserving location/size/write/creation metadata is outside the fingerprint guarantee; byte hashing remains in the import job. Entries beyond the scan cap require narrowing folders or raising the cap. Actual OS buffer-overflow injection and administrative Windows Service lifecycle are not claimed. Rights remain caller assertions and Unreviewed; discovery does not authorize publication or automatically import.
 
 Next Phase 2 slice: fuller stream inspection/selection and PySceneDetect scene detection with owned fixtures. No stream preprocessing, scenes, AI, Burmese TTS, rendering, dashboard, publishing or later-phase functionality is implemented here.
+
+Historical slice evidence. Latest full-suite verification: [Phase 2 scenes](phase-2-scenes-verification.md).

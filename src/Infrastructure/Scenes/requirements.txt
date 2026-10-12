@@ -1,0 +1,8 @@
+scenedetect==0.7.1
+av==19.0.0
+opencv-python==5.0.0.93
+numpy==2.5.4
+click==8.5.0
+colorama==0.4.6
+platformdirs==4.13.0
+tqdm==4.70.1

@@ -9,6 +9,7 @@ using MovieRecap.Jobs.Application;
 using MovieRecap.Jobs.Domain;
 using MovieRecap.Media.Application;
 using MovieRecap.Media.Domain;
+using MovieRecap.VideoProcessing.Application;
 using Xunit;
 using Xunit.Abstractions;
 namespace MovieRecap.IntegrationTests;
@@ -81,6 +82,7 @@ public sealed class HostSmokeTests(ITestOutputHelper output)
         start.Environment["Logging__FilePath"] = "";
         start.Environment["Discovery__Enabled"] = discovery ? "true" : "false";
         start.Environment["Discovery__RescanSeconds"] = "1";
+        if (Environment.GetEnvironmentVariable("TEST_SCENE_PYTHON") is { } scenePython) start.Environment["Scenes__PythonPath"] = scenePython;
         return Process.Start(start)!;
     }
     [PostgresMediaFact]
@@ -207,6 +209,57 @@ public sealed class HostSmokeTests(ITestOutputHelper output)
     }
     sealed record StreamResponse(Guid InventoryVersion, List<MediaStreamInfo> Streams, SelectionResponse Selection);
     sealed record SelectionResponse(Guid Version, int? VideoIndex, int? AudioIndex, int? SubtitleIndex);
+    [PostgresSceneFact]
+    public async Task Separate_hosts_decode_selected_nonprimary_video_and_preserve_scene_history()
+    {
+        await using var database = new DatabaseFixture(); await database.Initialize();
+        var folder = Path.Combine(Path.GetTempPath(), "recap_scene_hosts_" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(folder);
+        var processes = new List<Process>(); var drains = new List<Task<string>>();
+        try
+        {
+            var path = Path.Combine(folder, "movie.mkv"); File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "owned-scenes-multi.mkv"), path);
+            var bytes = File.ReadAllBytes(path); var stamp = File.GetLastWriteTimeUtc(path);
+            using var socket = new TcpListener(IPAddress.Loopback, 0); socket.Start(); var port = ((IPEndPoint)socket.LocalEndpoint).Port; socket.Stop();
+            foreach (var name in new[] { "MovieRecap.Api", "MovieRecap.Worker" })
+            {
+                var process = Start(name, database.Connection, folder, port); processes.Add(process); drains.Add(process.StandardOutput.ReadToEndAsync()); drains.Add(process.StandardError.ReadToEndAsync());
+            }
+            using var client = new HttpClient { BaseAddress = new($"http://127.0.0.1:{port}"), Timeout = TimeSpan.FromSeconds(10) };
+            client.DefaultRequestHeaders.Add("X-Api-Key", "integration-only-key-at-least-32-characters"); var deadline = DateTime.UtcNow.AddSeconds(40); var ready = false;
+            while (DateTime.UtcNow < deadline && !processes[0].HasExited)
+            {
+                try { ready = (await client.GetAsync("/health/ready")).IsSuccessStatusCode; } catch (HttpRequestException) { } catch (TaskCanceledException) { }
+                if (ready) break; await Task.Delay(100);
+            }
+            Assert.True(ready, "Scene smoke API failed readiness."); var imported = await Import(client, "movie.mkv"); Assert.Equal(JobStatus.Succeeded, imported.Job.Status);
+            var inventory = (await client.GetFromJsonAsync<StreamResponse>($"/api/media/imports/{imported.Import.Id}/streams", JsonOptions))!;
+            var selectionResponse = await client.PutAsJsonAsync($"/api/media/imports/{imported.Import.Id}/stream-selection", new SelectStreams(inventory.Selection.Version, 1, null, null, "scene-operator")); Assert.Equal(HttpStatusCode.OK, selectionResponse.StatusCode);
+            var selection = (await selectionResponse.Content.ReadFromJsonAsync<SelectionResponse>(JsonOptions))!;
+            var response = await client.PostAsJsonAsync($"/api/media/imports/{imported.Import.Id}/scene-analyses", new RequestScenes("host-scenes", selection.Version, "scene-operator", 27, 2, 1)); Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            var analysis = (await response.Content.ReadFromJsonAsync<SceneResponse>(JsonOptions))!; deadline = DateTime.UtcNow.AddSeconds(40);
+            while (analysis.Job.Status is JobStatus.Queued or JobStatus.Running)
+            {
+                Assert.True(DateTime.UtcNow < deadline, "Scene analysis did not finish."); await Task.Delay(100);
+                analysis = (await client.GetFromJsonAsync<SceneResponse>($"/api/video/scene-analyses/{analysis.Analysis.Id}", JsonOptions))!;
+            }
+            Assert.Equal(JobStatus.Succeeded, analysis.Job.Status); Assert.Equal(1, analysis.Analysis.VideoIndex); Assert.Equal(3, analysis.Scenes.Count); Assert.True(analysis.IsCurrentSelection);
+            Assert.Equal(new[] { 2.0, 4.0, 6.0 }, analysis.Scenes.Select(x => x.EndSeconds)); Assert.Equal("0.7.1", analysis.Analysis.SceneDetectVersion);
+            var audit = (await client.GetFromJsonAsync<List<AuditResponse>>($"/api/jobs/{analysis.Job.Id}/audit"))!; Assert.Equal(new[] { "created", "started", "succeeded" }, audit.Select(x => x.Action));
+            Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"/api/media/imports/{imported.Import.Id}/stream-selection", new SelectStreams(selection.Version, 0, null, null, "new-selection"))).StatusCode);
+            var old = (await client.GetFromJsonAsync<SceneResponse>($"/api/video/scene-analyses/{analysis.Analysis.Id}", JsonOptions))!; Assert.False(old.IsCurrentSelection); Assert.Equal(JobStatus.Succeeded, old.Job.Status); Assert.Equal(3, old.Scenes.Count);
+            Assert.Equal(bytes, File.ReadAllBytes(path)); Assert.Equal(stamp, File.GetLastWriteTimeUtc(path));
+            output.WriteLine($"Scene smoke: analysis {analysis.Analysis.Id}, job {analysis.Job.Id}, nonprimary stream 1 produced ranges [0,2),[2,4),[4,6) with PySceneDetect {analysis.Analysis.SceneDetectVersion}; historical result marked noncurrent after selection change; original bytes/timestamp preserved.");
+        }
+        finally
+        {
+            foreach (var process in processes) { if (!process.HasExited) { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(); } process.Dispose(); }
+            await Task.WhenAll(drains); foreach (var drain in drains) { var log = await drain; output.WriteLine(log[..Math.Min(log.Length, 8000)]); }
+            Directory.Delete(folder, true);
+        }
+    }
+    sealed record SceneIdentity(Guid Id, int VideoIndex, string? SceneDetectVersion);
+    sealed record SceneRangeResponse(int StartFrame, int EndFrame, double StartSeconds, double EndSeconds);
+    sealed record SceneResponse(SceneIdentity Analysis, JobView Job, bool IsCurrentSelection, List<SceneRangeResponse> Scenes);
     static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
     static async Task<ImportResponse> Import(HttpClient client, string file)
     {

@@ -54,3 +54,5 @@ Recommended next task: Phase 2 manual import with rights metadata, stable-file c
 
 
 Relocation verification: solution rebuilt successfully at D:\DevOps\movie-recap-platform with 0 warnings/errors; all 20 unit/architecture tests passed. PostgreSQL integration tests were not rerun for this path-only change.
+
+Historical slice evidence. Latest full-suite verification: [Phase 2 scenes](phase-2-scenes-verification.md).

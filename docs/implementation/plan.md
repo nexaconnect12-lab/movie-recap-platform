@@ -18,3 +18,5 @@ Phase 2 discovery changes were separately proposed and confirmed on 2026-10-12. 
 
 Phase 2 stream changes were separately proposed and confirmed on 2026-10-13 (Asia/Singapore). Extend real FFprobe inventory, explicit per-import versioned choices/audits, stable source hash verification, additive storage and real legacy inspection jobs. See phase-2-streams.md and ADR 0007. Existing application hosts/database remain preserved while tests use isolated outputs/disposable databases. PySceneDetect and later phases are excluded.
 
+
+Phase 2 scene changes were separately proposed and confirmed on 2026-10-13 (Asia/Singapore). Implement real PySceneDetect selected-video decoding through Media Application contracts, actual PTS ranges/provenance, bounded cancellable execution, additive Video storage and atomic fenced jobs/history. See phase-2-scenes.md and ADR 0008. Existing application hosts/database remain preserved; no extraction or later phases are included.

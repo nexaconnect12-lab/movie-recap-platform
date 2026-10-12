@@ -61,3 +61,5 @@ The existing application database was not upgraded automatically while its older
 To activate manual import locally, stop/restart the existing hosts with the new build after applying the migration, and configure matching folder aliases/roots and a real FFprobe path in both hosts. Preserve user media and keep roots trusted/stable. Sources are referenced in place, not archived; filesystem removal/replacement by another actor remains outside the preservation guarantee. Hashing reads each file twice; progress is coarse; the worker remains concurrency 1. FFprobe verifies metadata/container/video presence, not full decoding. MP4/MOV share a demuxer family. Rights remain caller assertions and Unreviewed; no publishing permission is inferred.
 
 Next scoped work: remaining Phase 2 folder monitoring, fuller stream handling/preprocessing and scene detection. None of those, AI, Burmese TTS, rendering or publishing was implemented here. No service installation, production deployment or later phase acceptance is claimed.
+
+Historical slice evidence. Latest full-suite verification: [Phase 2 scenes](phase-2-scenes-verification.md).
