@@ -156,6 +156,57 @@ public sealed class HostSmokeTests(ITestOutputHelper output)
         throw new TimeoutException($"Discovery smoke did not observe {path} as {status}.");
     }
     sealed record DiscoveryResponse(Guid Id, string RelativePath, DiscoveryStatus Status, bool IsCurrent, bool IsAvailable, Guid Version, Guid? ImportId);
+    [PostgresMediaFact]
+    public async Task Separate_hosts_inspect_select_audit_and_reinspect_real_streams()
+    {
+        await using var database = new DatabaseFixture(); await database.Initialize();
+        var folder = Path.Combine(Path.GetTempPath(), "recap_stream_hosts_" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(folder);
+        var processes = new List<Process>(); var drains = new List<Task<string>>();
+        try
+        {
+            var source = Path.Combine(folder, "movie.mkv"); File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "owned-multistream.mkv"), source);
+            var original = File.ReadAllBytes(source); var stamp = File.GetLastWriteTimeUtc(source);
+            using var socket = new TcpListener(IPAddress.Loopback, 0); socket.Start(); var port = ((IPEndPoint)socket.LocalEndpoint).Port; socket.Stop();
+            foreach (var name in new[] { "MovieRecap.Api", "MovieRecap.Worker" })
+            {
+                var process = Start(name, database.Connection, folder, port); processes.Add(process); drains.Add(process.StandardOutput.ReadToEndAsync()); drains.Add(process.StandardError.ReadToEndAsync());
+            }
+            using var client = new HttpClient { BaseAddress = new($"http://127.0.0.1:{port}"), Timeout = TimeSpan.FromSeconds(10) };
+            client.DefaultRequestHeaders.Add("X-Api-Key", "integration-only-key-at-least-32-characters");
+            var deadline = DateTime.UtcNow.AddSeconds(40); var ready = false;
+            while (DateTime.UtcNow < deadline && !processes[0].HasExited)
+            {
+                try { ready = (await client.GetAsync("/health/ready")).IsSuccessStatusCode; } catch (HttpRequestException) { } catch (TaskCanceledException) { }
+                if (ready) break; await Task.Delay(100);
+            }
+            Assert.True(ready, "Stream smoke API failed readiness."); var imported = await Import(client, "movie.mkv"); Assert.Equal(JobStatus.Succeeded, imported.Job.Status);
+            var view = (await client.GetFromJsonAsync<StreamResponse>($"/api/media/imports/{imported.Import.Id}/streams", JsonOptions))!;
+            Assert.Equal(6, view.Streams.Count); Assert.Equal("jpn", view.Streams.Single(x => x.Index == 3).Language); Assert.Null(view.Selection.VideoIndex);
+            var selectedResponse = await client.PutAsJsonAsync($"/api/media/imports/{imported.Import.Id}/stream-selection", new SelectStreams(view.Selection.Version, 1, 3, 5, "host-operator")); Assert.Equal(HttpStatusCode.OK, selectedResponse.StatusCode);
+            var selected = (await selectedResponse.Content.ReadFromJsonAsync<SelectionResponse>(JsonOptions))!; Assert.Equal(1, selected.VideoIndex); Assert.Equal(3, selected.AudioIndex); Assert.Equal(5, selected.SubtitleIndex);
+            Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync($"/api/media/imports/{imported.Import.Id}/stream-selection", new SelectStreams(view.Selection.Version, 0, null, null, "stale"))).StatusCode);
+            var audit = await client.GetFromJsonAsync<List<SelectionAuditView>>($"/api/media/imports/{imported.Import.Id}/stream-selection/audit", JsonOptions); Assert.Equal("host-operator", Assert.Single(audit!).RequestedBy);
+            var queue = await client.PostAsJsonAsync($"/api/media/imports/{imported.Import.Id}/stream-inspections", new ReinspectStreams("host-reprobe", 1)); Assert.Equal(HttpStatusCode.Created, queue.StatusCode);
+            var inspection = (await queue.Content.ReadFromJsonAsync<StreamInspectionView>(JsonOptions))!; var job = inspection.Job; deadline = DateTime.UtcNow.AddSeconds(30);
+            while (job.Status is JobStatus.Queued or JobStatus.Running)
+            {
+                Assert.True(DateTime.UtcNow < deadline, "Reinspection did not finish."); await Task.Delay(100); job = (await client.GetFromJsonAsync<JobView>($"/api/jobs/{job.Id}", JsonOptions))!;
+            }
+            Assert.Equal(JobStatus.Succeeded, job.Status);
+            var reinspected = (await client.GetFromJsonAsync<StreamResponse>($"/api/media/imports/{imported.Import.Id}/streams", JsonOptions))!;
+            Assert.Equal(view.InventoryVersion, reinspected.InventoryVersion); Assert.Equal(selected.Version, reinspected.Selection.Version);
+            Assert.Equal(original, File.ReadAllBytes(source)); Assert.Equal(stamp, File.GetLastWriteTimeUtc(source));
+            output.WriteLine($"Stream smoke: import {imported.Import.Id}, selected video 1/audio 3/subtitle 5, inspection job {job.Id} succeeded, immutable inventory {view.InventoryVersion}; original bytes/timestamp preserved.");
+        }
+        finally
+        {
+            foreach (var process in processes) { if (!process.HasExited) { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(); } process.Dispose(); }
+            await Task.WhenAll(drains); foreach (var drain in drains) { var log = await drain; output.WriteLine(log[..Math.Min(log.Length, 8000)]); }
+            Directory.Delete(folder, true);
+        }
+    }
+    sealed record StreamResponse(Guid InventoryVersion, List<MediaStreamInfo> Streams, SelectionResponse Selection);
+    sealed record SelectionResponse(Guid Version, int? VideoIndex, int? AudioIndex, int? SubtitleIndex);
     static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
     static async Task<ImportResponse> Import(HttpClient client, string file)
     {

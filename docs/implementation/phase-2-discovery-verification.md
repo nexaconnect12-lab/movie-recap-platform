@@ -1,4 +1,5 @@
 # Phase 2 discovery verification — 2026-10-12 (Asia/Singapore)
+This is the original import/discovery acceptance snapshot. Latest combined acceptance including stream inspection/selection is in [stream verification](phase-2-streams-verification.md).
 
 Scope: confirmed folder-monitoring and discovery-inbox slice. Existing solution/instructions were inspected, changes were proposed, and the user explicitly authorized them before existing files were modified. Original media, existing hosts and the application database were preserved.
 

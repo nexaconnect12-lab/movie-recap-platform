@@ -5,7 +5,9 @@ Phase 2 manual import slice: implemented MediaAsset, import-scoped MediaRights a
 
 Phase 2 discovery slice: optional worker folder monitoring, durable discovery revisions/inbox APIs, stable/readable observation, explicit rights/source submission and atomic import-job integration. See phase-2-discovery.md and phase-2-discovery-verification.md for evidence/limits. Monitoring does not automatically import files.
 
-Next task (remaining Phase 2): fuller stream inspection/selection/preprocessing and PySceneDetect scene detection. These are not implemented in the import/discovery slices.
+Phase 2 stream slice: full real FFprobe inventories, immutable content metadata, per-import explicit/versioned selection/audit, source-hash verification and real legacy reinspection jobs. See phase-2-streams.md and phase-2-streams-verification.md. No extraction/preprocessing is implied.
+
+Next task (remaining Phase 2): PySceneDetect scene detection using the selected video stream, with persisted time ranges, cancellation/recovery and owned fixtures. Stream extraction/preprocessing remains separately scoped work; AI/TTS/rendering/publishing remain later phases.
 
 Phase 3: chunked ASR/frame analysis, grounded outline, recap generation/versioned editor/approval.
 Phase 4: Burmese language adapter, verified real TTS voice, chunks/normalization, aligned subtitles and exports.

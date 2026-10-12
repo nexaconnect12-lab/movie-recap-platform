@@ -1,4 +1,4 @@
-# AI Movie Recap Automation Platform — Phase 2 media import and discovery
+# AI Movie Recap Automation Platform — Phase 2 media import, discovery and streams
 A .NET 10 modular monolith foundation with ASP.NET Core API, independently hosted Windows-compatible processing worker, PostgreSQL/EF Core migrations, structured JSON logs, health checks and a persistent job lifecycle.
 
 The worker executes `foundation.database-check` and `media.manual-import`. Manual import records rights/source metadata, validates stable MP4/MKV/MOV/AVI files, hashes SHA-256, deduplicates content, and extracts real FFprobe metadata. Original files remain in place. No AI account or paid service is needed. This implements the first Phase 2 slice; further capabilities are tracked in [the roadmap](docs/implementation/roadmap.md).
@@ -6,6 +6,8 @@ The worker executes `foundation.database-check` and `media.manual-import`. Manua
 Before importing, configure identical `Media__Folders__library` and `Media__FfprobePath` values in both hosts and apply the additive migrations. See [manual import API/configuration](docs/api/media-imports.md), [manual-import implementation](docs/implementation/phase-2.md) and [manual-import verification](docs/implementation/phase-2-verification.md). Rights are recorded as caller assertions and remain unreviewed; import success grants no publishing permission.
 
 Optional worker-hosted folder monitoring adds a persistent discovery inbox. It observes safe readable/stable files and recovers missed events through periodic scans; an operator must submit source/rights metadata before any import job is created. Enable with `Discovery__Enabled=true` after configuring media roots. See [discovery inbox API/configuration](docs/api/discovery-inbox.md), [implementation](docs/implementation/phase-2-discovery.md) and [current verification](docs/implementation/phase-2-discovery-verification.md). Monitoring is disabled by default; original files remain untouched.
+
+Full FFprobe stream inventories and per-import video/audio/subtitle choices are now supported. Selection is explicit, versioned, audited and verifies the original source hash. New imports receive an inventory and unselected choice state; older records require a real reinspection job. See [streams API](docs/api/media-streams.md), [stream implementation](docs/implementation/phase-2-streams.md) and [latest verification](docs/implementation/phase-2-streams-verification.md). No audio/subtitle extraction or scene detection runs in this slice.
 
 ## Local startup (Windows PowerShell 7)
 Prerequisites: .NET 10 SDK and Docker Desktop with Linux containers. Run these commands from this folder:

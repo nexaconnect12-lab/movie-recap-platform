@@ -17,3 +17,5 @@ For the full test suite, set TEST_FFPROBE as well as TEST_POSTGRES. If normal De
 
 Folder monitoring is optional: apply MediaDiscoveryInbox, configure matching trusted media roots and enable Discovery__Enabled only in the worker. Defaults are disabled, RescanSeconds=30, MaxEntriesPerFolder=10000. The worker discovers candidates; explicit source/rights submission through the API is required to import. See ../api/discovery-inbox.md. Apply migrations and restart the hosts before enabling it; readiness verifies the discovery table even when monitoring is disabled.
 
+Stream inventory/selection additionally requires MediaStreamSelection, with the same real FFprobe and trusted folders. New imports initialize full inventory/unselected choices. Reinspect older records through the API; no stream data is guessed during migration. Source hashing can make selection HTTP calls slow on large movies and holds a selection row lock during the final pass; use suitable client timeouts and cancellation. No extraction/scene tool is required in this slice. See ../api/media-streams.md.
+

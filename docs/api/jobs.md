@@ -16,7 +16,7 @@ Creation:
 ```json
 {"kind":"foundation.database-check","idempotencyKey":"example-001","maxAttempts":3}
 ```
-Idempotency key supports ASCII letters/digits and . _ : -; max 128 characters. The `media-import:` namespace is reserved. Other job kinds are rejected by this generic creation endpoint; manual movie jobs must be created through [the Media import endpoint](media-imports.md) to atomically associate source/rights metadata. MaxAttempts 1–5. All query/audit/versioned commands above also apply to `media.manual-import` jobs.
+Idempotency key supports ASCII letters/digits and . _ : -; max 128 characters. The `media-import:` and `stream-inspection:` namespaces are reserved. Other job kinds are rejected by this generic creation endpoint; manual movie jobs must use [the Media import endpoint](media-imports.md), and reinspection jobs use [the stream inspection endpoint](media-streams.md), to atomically associate module records. MaxAttempts 1–5. All query/audit/versioned commands above also apply to `media.manual-import` and `media.stream-inspection` jobs.
 
 Mutation body:
 ```json

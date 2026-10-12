@@ -9,7 +9,7 @@ public sealed class CreateJobValidator : AbstractValidator<CreateJob>
     {
         RuleFor(x => x.Kind).Equal("foundation.database-check");
         RuleFor(x => x.IdempotencyKey).NotEmpty().MaximumLength(128).Matches(@"^[A-Za-z0-9._:-]+$");
-        RuleFor(x => x.IdempotencyKey).Must(x => x is null || !x.StartsWith("media-import:", StringComparison.Ordinal)).WithMessage("The media-import namespace is reserved for manual imports.");
+        RuleFor(x => x.IdempotencyKey).Must(x => x is null || !(x.StartsWith("media-import:", StringComparison.Ordinal) || x.StartsWith("stream-inspection:", StringComparison.Ordinal))).WithMessage("Media job key namespaces are reserved for module coordinators.");
         RuleFor(x => x.MaxAttempts).InclusiveBetween(1, 5);
     }
 }

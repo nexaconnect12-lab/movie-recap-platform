@@ -26,9 +26,9 @@ var app = builder.Build();
 app.UseExceptionHandler(error => error.Run(async context =>
 {
     var ex = context.Features.Get<IExceptionHandlerFeature>()!.Error;
-    var status = ex switch { ValidationException or ImportException => 400, JobConflictException or ImportConflictException or DbUpdateConcurrencyException => 409, _ => 500 };
+    var status = ex switch { BadHttpRequestException requestError => requestError.StatusCode, System.Text.Json.JsonException or ValidationException or ImportException => 400, JobConflictException or ImportConflictException or DbUpdateConcurrencyException => 409, _ => 500 };
     if (status == 500) app.Logger.LogError(ex, "Request failed {TraceId}", context.TraceIdentifier);
-    await Results.Problem(statusCode: status, title: status == 500 ? "Internal server error" : ex.Message,
+    await Results.Problem(statusCode: status, title: status == 500 ? "Internal server error" : ex is BadHttpRequestException or System.Text.Json.JsonException ? "Invalid request body" : ex.Message,
         extensions: ex is ValidationException v ? new Dictionary<string, object?> { ["errors"] = v.Errors.Select(e => new { e.PropertyName, e.ErrorMessage }) } : null).ExecuteAsync(context);
 }));
 app.UseSerilogRequestLogging();
@@ -44,6 +44,21 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => fa
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = x => x.Tags.Contains("ready") });
 app.MapOpenApi();
 var imports = app.MapGroup("/api/media/imports").WithTags("Media imports");
+imports.MapGet("/{id:guid}/streams", async (Guid id, IStreamStore store, CancellationToken ct) =>
+{
+    var result = await store.GetAsync(id, ct); return result is null ? Results.NotFound() : Results.Ok(result);
+});
+imports.MapPut("/{id:guid}/stream-selection", async (Guid id, SelectStreams request, StreamService service, CancellationToken ct) =>
+{
+    var result = await service.SelectAsync(id, request, ct); return result is null ? Results.NotFound() : Results.Ok(result);
+});
+imports.MapGet("/{id:guid}/stream-selection/audit", async (Guid id, IStreamStore store, CancellationToken ct) =>
+    await store.GetAsync(id, ct) is null ? Results.NotFound() : Results.Ok(await store.AuditAsync(id, ct)));
+imports.MapPost("/{id:guid}/stream-inspections", async (Guid id, ReinspectStreams request, StreamService service, CancellationToken ct) =>
+{
+    var result = await service.InspectAsync(id, request, ct);
+    return result is null ? Results.NotFound() : Results.Created($"/api/jobs/{result.Job.Id}", result);
+});
 var discoveries = app.MapGroup("/api/media/discoveries").WithTags("Media discovery inbox");
 discoveries.MapGet("/", async (int? limit, DiscoveryStatus? status, IDiscoveryStore store, CancellationToken ct) =>
     Results.Ok(await store.ListAsync(limit ?? 50, status, ct)));

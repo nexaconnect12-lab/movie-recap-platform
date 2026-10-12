@@ -9,7 +9,7 @@ using MovieRecap.Media.Application;
 namespace MovieRecap.Worker;
 
 public sealed class WorkerOptions { public int PollSeconds { get; set; } = 2; public int LeaseSeconds { get; set; } = 60; }
-public sealed class JobWorker(IJobStore store, IDbContextFactory<PlatformDbContext> factory, ImportExecutor imports, IOptions<WorkerOptions> options, ILogger<JobWorker> log) : BackgroundService
+public sealed class JobWorker(IJobStore store, IDbContextFactory<PlatformDbContext> factory, ImportExecutor imports, StreamInspectionExecutor inspections, IOptions<WorkerOptions> options, ILogger<JobWorker> log) : BackgroundService
 {
     readonly string workerId = Environment.MachineName + ":" + Guid.NewGuid().ToString("N");
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -38,6 +38,7 @@ public sealed class JobWorker(IJobStore store, IDbContextFactory<PlatformDbConte
         try
         {
             if (job.Kind == "media.manual-import") await imports.ExecuteAsync(job, execution.Token, value => Volatile.Write(ref progress, value));
+            else if (job.Kind == "media.stream-inspection") await inspections.ExecuteAsync(job, execution.Token, value => Volatile.Write(ref progress, value));
             else if (job.Kind == "foundation.database-check")
             {
                 await using var db = await factory.CreateDbContextAsync(execution.Token);
@@ -54,7 +55,7 @@ public sealed class JobWorker(IJobStore store, IDbContextFactory<PlatformDbConte
         }
         catch (Exception ex)
         {
-            var error = ex is ImportException importError ? importError.Code : job.Kind == "media.manual-import" ? "media-import-failed" : "database-check-failed";
+            var error = ex is ImportException importError ? importError.Code : job.Kind == "media.manual-import" ? "media-import-failed" : job.Kind == "media.stream-inspection" ? "stream-inspection-failed" : "database-check-failed";
             // FFprobe/provider output and user-supplied media metadata never enter logs.
             log.LogError("Job {JobId} failed with {ErrorCode}", job.JobId, error);
             try { await store.FailAsync(job, error, stop); }

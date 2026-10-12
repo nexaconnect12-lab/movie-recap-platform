@@ -16,3 +16,5 @@ Phase 2 manual-import changes were proposed after inspecting the existing soluti
 
 Phase 2 discovery changes were separately proposed and confirmed on 2026-10-12. Implement optional worker-hosted monitoring, persistent versioned candidates and inbox APIs, safe/stable observation and atomic explicit source/rights submission into existing jobs. Source fingerprints bind the later executor to the observed revision. See phase-2-discovery.md and ADR 0006. Verification again uses isolated artifact outputs and disposable databases; existing application hosts/database are preserved.
 
+Phase 2 stream changes were separately proposed and confirmed on 2026-10-13 (Asia/Singapore). Extend real FFprobe inventory, explicit per-import versioned choices/audits, stable source hash verification, additive storage and real legacy inspection jobs. See phase-2-streams.md and ADR 0007. Existing application hosts/database remain preserved while tests use isolated outputs/disposable databases. PySceneDetect and later phases are excluded.
+

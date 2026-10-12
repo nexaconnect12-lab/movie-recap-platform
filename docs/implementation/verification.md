@@ -1,5 +1,5 @@
 # Phase 1 verification — 2026-10-12 (Asia/Singapore)
-This is historical Phase 1 evidence. Manual-import evidence is in [Phase 2 verification](phase-2-verification.md); current combined import/discovery evidence is in [discovery verification](phase-2-discovery-verification.md).
+This is historical Phase 1 evidence. Manual-import evidence is in [Phase 2 verification](phase-2-verification.md), import/discovery evidence in [discovery verification](phase-2-discovery-verification.md), and latest combined acceptance in [stream verification](phase-2-streams-verification.md).
 Final state: foundation implemented and verified. Existing user files were not overwritten. Source specification preserved in ../requirements/master-prompt.md. Canonical project location: D:\DevOps\movie-recap-platform (confirmed after the user requested this path).
 
 ## Observed results

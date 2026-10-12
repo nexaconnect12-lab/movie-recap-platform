@@ -10,6 +10,8 @@ namespace MovieRecap.Infrastructure;
 public sealed class FfprobeAdapter(IOptions<MediaOptions> options)
 {
     public async Task<MediaMetadata> ProbeAsync(string path, CancellationToken ct)
+        => (await ProbeDetailedAsync(path, ct)).Metadata;
+    public async Task<MediaProbe> ProbeDetailedAsync(string path, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         var settings = options.Value;
@@ -31,7 +33,7 @@ public sealed class FfprobeAdapter(IOptions<MediaOptions> options)
         {
             await Task.WhenAll(stdout, stderr, process.WaitForExitAsync(timeout.Token));
             if (process.ExitCode != 0) throw new ImportException("ffprobe-rejected-media");
-            return Parse(await stdout, Path.GetExtension(path));
+            return ParseDetailed(await stdout, Path.GetExtension(path));
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested) { throw new ImportException("ffprobe-timeout"); }
         finally
@@ -87,6 +89,49 @@ public sealed class FfprobeAdapter(IOptions<MediaOptions> options)
         catch (ImportException) { throw; }
         catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException or ArgumentException or FormatException or OverflowException or NullReferenceException)
         { throw new ImportException("ffprobe-invalid-metadata"); }
+    }
+    public static MediaProbe ParseDetailed(string json, string extension)
+    {
+        var metadata = Parse(json, extension);
+        try
+        {
+            using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 32 });
+            var source = document.RootElement.GetProperty("streams");
+            if (source.GetArrayLength() > 256) throw new ImportException("ffprobe-stream-limit");
+            var streams = source.EnumerateArray().Select(s =>
+            {
+                var kind = s.GetProperty("codec_type").GetString() switch
+                {
+                    "video" => MediaStreamKind.Video, "audio" => MediaStreamKind.Audio, "subtitle" => MediaStreamKind.Subtitle, _ => MediaStreamKind.Other
+                };
+                var language = s.TryGetProperty("tags", out var tags) ? Text(tags, "language") : null;
+                if (string.Equals(language, "und", StringComparison.OrdinalIgnoreCase)) language = null;
+                var rate = OptionalNumber(s, "avg_frame_rate");
+                if (rate is null or <= 0) rate = OptionalNumber(s, "r_frame_rate");
+                return new MediaStreamInfo(s.GetProperty("index").GetInt32(), kind, Text(s, "codec_name"), language,
+                    OptionalNumber(s, "duration"), Flag(s, "default"), Flag(s, "forced"), AttachedPicture(s),
+                    OptionalInt(s, "width"), OptionalInt(s, "height"), rate,
+                    OptionalInt(s, "channels"), OptionalInt(s, "sample_rate"), s.GetProperty("codec_type").GetString());
+            }).OrderBy(x => x.Index).ToArray();
+            MediaStreamInfo.ValidateInventory(streams); return new(metadata, streams);
+        }
+        catch (ImportException) { throw; }
+        catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException or ArgumentException or FormatException or OverflowException or NullReferenceException)
+        { throw new ImportException("ffprobe-invalid-metadata"); }
+    }
+    static string? Text(JsonElement element, string name) => element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(value.GetString()) ? value.GetString() : null;
+    static bool Flag(JsonElement stream, string name) => stream.TryGetProperty("disposition", out var disposition) && disposition.TryGetProperty(name, out var value) && value.GetInt32() == 1;
+    static double? OptionalNumber(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null || value.ValueKind == JsonValueKind.String && value.GetString() == "N/A") return null;
+        var result = Number(element, name);
+        if (double.IsNaN(result) && name is not ("avg_frame_rate" or "r_frame_rate")) throw new ArgumentException("Invalid numeric metadata.");
+        return double.IsNaN(result) ? null : result;
+    }
+    static int? OptionalInt(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return null;
+        return value.ValueKind == JsonValueKind.Number ? value.GetInt32() : int.Parse(value.GetString()!, CultureInfo.InvariantCulture);
     }
     static bool AttachedPicture(JsonElement stream) => stream.TryGetProperty("disposition", out var disposition) &&
         disposition.TryGetProperty("attached_pic", out var attached) && attached.GetInt32() == 1;

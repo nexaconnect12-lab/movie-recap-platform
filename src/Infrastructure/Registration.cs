@@ -23,6 +23,8 @@ public static class Registration
         services.AddOptions<DiscoveryOptions>().Bind(configuration.GetSection("Discovery")).Validate(x => x.IsValid(), "Invalid discovery configuration").ValidateOnStart();
         services.AddSingleton<DiscoveryFiles>(); services.AddSingleton<IDiscoveryFiles>(s => s.GetRequiredService<DiscoveryFiles>());
         services.AddSingleton<IDiscoveryStore, PostgresDiscoveryStore>(); services.AddSingleton<DiscoveryService>();
+        services.AddSingleton<IStreamStore, PostgresStreamStore>(); services.AddSingleton<IMediaSourceVerifier, MediaSourceVerifier>();
+        services.AddSingleton<StreamService>(); services.AddSingleton<StreamInspectionExecutor>();
         services.AddHealthChecks().AddCheck<DatabaseHealth>("postgresql", tags: ["ready"]);
         return services;
     }
@@ -40,6 +42,11 @@ public sealed class DatabaseHealth(IDbContextFactory<PlatformDbContext> factory)
             await db.Assets.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             await db.ImportRights.AsNoTracking().Select(x => x.ImportId).Take(1).ToListAsync(ct);
             await db.Discoveries.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
+            await db.StreamInventories.AsNoTracking().Select(x => x.AssetId).Take(1).ToListAsync(ct);
+            await db.MediaStreams.AsNoTracking().Select(x => x.Index).Take(1).ToListAsync(ct);
+            await db.StreamSelections.AsNoTracking().Select(x => x.ImportId).Take(1).ToListAsync(ct);
+            await db.StreamInspections.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
+            await db.SelectionAudits.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             return HealthCheckResult.Healthy();
         }
         catch (Exception ex) when (ex is not OperationCanceledException) { return HealthCheckResult.Unhealthy("Database or schema unavailable."); }

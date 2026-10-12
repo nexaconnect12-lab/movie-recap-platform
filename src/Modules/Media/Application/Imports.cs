@@ -13,7 +13,7 @@ public sealed record ImportView(MovieImport Import, MediaRights Rights, JobView 
     public string RightsReviewStatus => "Unreviewed";
 }
 public sealed record ImportWork(MovieImport Import);
-public sealed record InspectedMedia(string Sha256, long SizeBytes, MediaMetadata Metadata);
+public sealed record InspectedMedia(string Sha256, long SizeBytes, MediaMetadata Metadata, IReadOnlyList<MediaStreamInfo>? Streams = null);
 public interface IImportStore
 {
     Task<ImportView> CreateAsync(ManualImport request, CancellationToken ct);

@@ -12,6 +12,11 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<MediaAsset> Assets => Set<MediaAsset>();
     public DbSet<ImportRightsRecord> ImportRights => Set<ImportRightsRecord>();
     public DbSet<MediaDiscovery> Discoveries => Set<MediaDiscovery>();
+    public DbSet<StreamInventoryRecord> StreamInventories => Set<StreamInventoryRecord>();
+    public DbSet<MediaStreamRecord> MediaStreams => Set<MediaStreamRecord>();
+    public DbSet<StreamSelection> StreamSelections => Set<StreamSelection>();
+    public DbSet<StreamInspectionRecord> StreamInspections => Set<StreamInspectionRecord>();
+    public DbSet<SelectionAuditRecord> SelectionAudits => Set<SelectionAuditRecord>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         var j = model.Entity<ProcessingJob>();
@@ -73,6 +78,28 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             t.HasCheckConstraint("CK_Discovery_Fingerprint", "\"SizeBytes\" >= 0 AND \"Fingerprint\" ~ '^[0-9a-f]{64}$'");
             t.HasCheckConstraint("CK_Discovery_Submission", "(\"Status\" = 'Submitted' AND \"ImportId\" IS NOT NULL AND \"SubmittedVersion\" IS NOT NULL) OR (\"Status\" <> 'Submitted' AND \"ImportId\" IS NULL AND \"SubmittedVersion\" IS NULL)");
         });
+        var inventory = model.Entity<StreamInventoryRecord>(); inventory.ToTable("StreamInventories", "media"); inventory.HasKey(x => x.AssetId);
+        inventory.HasAlternateKey(x => new { x.AssetId, x.Version }); inventory.HasOne<MediaAsset>().WithOne().HasForeignKey<StreamInventoryRecord>(x => x.AssetId).OnDelete(DeleteBehavior.Restrict);
+        var stream = model.Entity<MediaStreamRecord>(); stream.ToTable("MediaStreams", "media"); stream.HasKey(x => new { x.AssetId, x.Index });
+        stream.HasOne<StreamInventoryRecord>().WithMany().HasForeignKey(x => x.AssetId).OnDelete(DeleteBehavior.Restrict);
+        stream.OwnsOne(x => x.Details, d =>
+        {
+            d.Ignore(x => x.IsSelectable); d.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            d.Property(x => x.Codec).HasMaxLength(64); d.Property(x => x.Language).HasMaxLength(64); d.Property(x => x.ReportedType).HasMaxLength(32);
+        });
+        stream.Navigation(x => x.Details).IsRequired();
+        stream.ToTable(t => t.HasCheckConstraint("CK_Stream_Index", "\"Index\" >= 0 AND \"Details_Index\" = \"Index\""));
+        var selection = model.Entity<StreamSelection>(); selection.ToTable("StreamSelections", "media"); selection.HasKey(x => x.ImportId);
+        selection.Property(x => x.Version).IsConcurrencyToken(); selection.Property(x => x.SelectedBy).HasMaxLength(256);
+        selection.HasOne<MovieImport>().WithOne().HasForeignKey<StreamSelection>(x => x.ImportId).OnDelete(DeleteBehavior.Restrict);
+        selection.HasOne<StreamInventoryRecord>().WithMany().HasForeignKey(x => new { x.AssetId, x.InventoryVersion }).HasPrincipalKey(x => new { x.AssetId, x.Version }).OnDelete(DeleteBehavior.Restrict);
+        selection.ToTable(t => t.HasCheckConstraint("CK_Selection_State", "(\"VideoIndex\" IS NULL AND \"AudioIndex\" IS NULL AND \"SubtitleIndex\" IS NULL AND \"SelectedAt\" IS NULL AND \"SelectedBy\" IS NULL) OR (\"VideoIndex\" IS NOT NULL AND \"VideoIndex\" >= 0 AND \"SelectedAt\" IS NOT NULL AND \"SelectedBy\" IS NOT NULL)"));
+        var inspection = model.Entity<StreamInspectionRecord>(); inspection.ToTable("StreamInspections", "media"); inspection.HasKey(x => x.Id);
+        inspection.Property(x => x.IdempotencyKey).HasMaxLength(128); inspection.HasIndex(x => new { x.ImportId, x.IdempotencyKey }).IsUnique(); inspection.HasIndex(x => x.JobId).IsUnique();
+        inspection.HasOne<MovieImport>().WithMany().HasForeignKey(x => x.ImportId).OnDelete(DeleteBehavior.Restrict);
+        var audit = model.Entity<SelectionAuditRecord>(); audit.ToTable("StreamSelectionAudits", "media"); audit.HasKey(x => x.Id);
+        audit.Property(x => x.Sequence).UseIdentityAlwaysColumn(); audit.HasIndex(x => x.Sequence).IsUnique(); audit.Property(x => x.RequestedBy).HasMaxLength(256);
+        audit.HasIndex(x => x.ImportId); audit.HasOne<MovieImport>().WithMany().HasForeignKey(x => x.ImportId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 public sealed class DesignFactory : IDesignTimeDbContextFactory<PlatformDbContext>

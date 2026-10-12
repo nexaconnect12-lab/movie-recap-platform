@@ -9,3 +9,5 @@ Phase 2 manual import now implements stable-file observation, SHA-256 deduplicat
 
 Optional worker folder monitoring now feeds a persistent discovery inbox. Versioned source/rights submission creates an import bound to that observed location/file revision, using the same real hash/probe pipeline. Changed sources require a new discovery submission; monitoring alone creates no jobs. See ADR 0006.
 
+Full stream inspection and explicit video/audio/subtitle selection now persist through Media. Cover art and incompatible/unknown track types cannot be chosen; source identity is hashed before versioned/audited selection writes. Legacy reinspection uses actual bounded FFprobe and a fenced job. Choices are recorded, not executed: no audio/subtitle extraction, selected-stream decoding, black-bar/overlay analysis, scenes or renders exist yet. See ADR 0007 and ../api/media-streams.md. The summary metadata remains the original first-video/first-audio summary; consumers use chosen indexes and their inventory metadata.
+

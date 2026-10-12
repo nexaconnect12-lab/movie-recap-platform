@@ -60,13 +60,13 @@ public sealed class MediaInspector(IOptions<MediaOptions> options, FfprobeAdapte
             Check();
             var hash = Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, ct));
             Check();
-            var metadata = await probe.ProbeAsync(path, ct);
+            var result = await probe.ProbeDetailedAsync(path, ct);
             // Rehash after the subprocess: also detects same-size, timestamp-preserving changes on systems without Windows share locks.
             stream.Position = 0;
             var afterHash = Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, ct));
             Check();
             if (hash != afterHash) throw new ImportException("media-file-changed");
-            return new(hash, stream.Length, metadata);
+            return new(hash, stream.Length, result.Metadata, result.Streams);
             void Check()
             {
                 if (Resolve(folder, relativePath) != path || Snapshot(path) != before || stream.Length != before.Length)

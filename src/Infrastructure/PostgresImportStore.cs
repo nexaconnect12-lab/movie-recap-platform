@@ -84,6 +84,8 @@ public sealed class PostgresImportStore(IDbContextFactory<PlatformDbContext> fac
         if (asset is null) { asset = candidate; db.Assets.Add(asset); }
         else if (asset.SizeBytes != media.SizeBytes || asset.Metadata != media.Metadata) throw new ImportException("duplicate-metadata-conflict");
         import.Complete(asset.Id, duplicate, clock.GetUtcNow());
+        var inventory = await StreamPersistence.InventoryAsync(db, asset.Id, media.Streams, clock.GetUtcNow(), ct);
+        await StreamPersistence.InitializeSelectionAsync(db, import, inventory, ct);
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
     }
 }
