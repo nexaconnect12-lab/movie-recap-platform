@@ -9,3 +9,5 @@ Current Phase 2 also executes selected-video scene analysis: real PySceneDetect/
 Current Phase 2 also includes source-preserving selected-audio extraction with actual FFmpeg and managed PCM WAV artifacts. Configure a separate trusted artifact root shared by API/worker. See ../implementation/phase-2-audio.md and ../api/audio-extraction.md. No transcription, generated speech or recap rendering is included.
 
 Current Phase 2 includes deterministic scene thumbnails/frame sampling with real FFmpeg and managed PNG batches, actual source/normalized timestamps and authenticated history/downloads. See ../implementation/phase-2-frames.md and ../api/scene-frames.md. No AI-selected highlights or later-phase output is implemented.
+
+Current Phase 2 includes preparation view/real artifact validation and versioned audited operator decisions. Changed source/selection/prepared content or new validation makes prior decisions stale. See ../implementation/phase-2-preparation.md and ../api/preparation-review.md. Approval covers preparation only and does not grant publishing authorization or invoke later phases.

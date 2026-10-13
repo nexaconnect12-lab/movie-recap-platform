@@ -13,7 +13,9 @@ Phase 2 audio slice: real selected-track FFmpeg decode into validated PCM WAV, o
 
 Phase 2 frame slice: real selected-video scene quantile PNGs, actual PTS/offset mapping, owned batch artifacts/fenced jobs/download/history/cleanup. See phase-2-frames.md and phase-2-frames-verification.md.
 
-Next proposed task (remaining Phase 2): operator review/validation of prepared scene/audio/frame artifacts, with bounded history and artifact availability checks. Scope requires separate confirmation. Other extraction/preprocessing remains separately scoped; ASR/AI/TTS/rendering/publishing remain later phases.
+Phase 2 preparation slice: combined current preparation view, real source/WAV/PNG validation jobs, explicit snapshot bindings, versioned operator decisions/notes/audits and stale-review detection. See phase-2-preparation.md and phase-2-preparation-verification.md.
+
+Next work: separately scoped Phase 2 activation/acceptance rehearsal with configured local roots and protected environment. Other preprocessing and ASR/AI/TTS/rendering/publishing remain separately scoped; this does not claim all Phase 2 capabilities complete or authorize Phase 3.
 
 Phase 3: chunked ASR/frame analysis, grounded outline, recap generation/versioned editor/approval.
 Phase 4: Burmese language adapter, verified real TTS voice, chunks/normalization, aligned subtitles and exports.
@@ -23,5 +25,6 @@ Phase 7: protected accounts, official publishing adapters, rights gates, persist
 Phase 8: resource/performance controls, authentication/security review, metrics/alerts, fault recovery and deployment automation.
 
 Remaining foundation hardening: separate runtime DB role provisioning, migration rollback rehearsal, worker fleet liveness/metrics, audit retention, graceful shutdown budgeting for long-running handlers, API rate limits/user roles, secure production secret-provider integration and SCM lifecycle acceptance.
+
 
 

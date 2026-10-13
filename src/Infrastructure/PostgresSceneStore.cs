@@ -58,6 +58,7 @@ public sealed class PostgresSceneStore(IDbContextFactory<PlatformDbContext> fact
         if (lease.Kind != "video.scene-analysis") throw new SceneException("invalid-scene-lease");
         detection.Validate();
         await using var db = await factory.CreateDbContextAsync(ct); await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await PreparationTransactions.LockAsync(db, source.ImportId, ct);
         IJobTransaction jobs = new PostgresJobTransaction(db, clock); await jobs.CompleteAsync(lease, ct);
         ISelectedVideoTransaction selection = new PostgresSelectedVideoTransaction(db); await selection.RequireAsync(source, ct);
         var a = await db.SceneAnalyses.SingleAsync(x => x.JobId == lease.JobId, ct);
@@ -71,3 +72,4 @@ public sealed class PostgresSceneStore(IDbContextFactory<PlatformDbContext> fact
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
     }
 }
+

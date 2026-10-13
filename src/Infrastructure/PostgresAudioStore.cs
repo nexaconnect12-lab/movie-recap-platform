@@ -53,6 +53,7 @@ public sealed class PostgresAudioStore(IDbContextFactory<PlatformDbContext> fact
         if (lease.Kind != "video.audio-extraction" || artifact.AttemptToken != lease.Token || attempt.Token != lease.Token) throw new AudioException("audio-attempt-binding-mismatch"); artifact.Validate();
         await using var db = await factory.CreateDbContextAsync(ct); await using var tx = await db.Database.BeginTransactionAsync(ct);
         await LockAsync(db, "audio-operation:" + attempt.ExtractionId.ToString("N"), ct);
+        await PreparationTransactions.LockAsync(db, source.ImportId, ct);
         IJobTransaction jobs = new PostgresJobTransaction(db, clock); await jobs.RequireLeaseAsync(lease, ct);
         ISelectedAudioTransaction selected = new PostgresSelectedAudioTransaction(db); await selected.RequireAsync(source, ct);
         var a = await db.AudioExtractions.SingleAsync(x => x.JobId == lease.JobId, ct);
@@ -71,3 +72,4 @@ public sealed class PostgresAudioStore(IDbContextFactory<PlatformDbContext> fact
     }
     static Task<int> LockAsync(PlatformDbContext db, string key, CancellationToken ct) => db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", ct);
 }
+

@@ -37,6 +37,9 @@ public static class Registration
         services.AddOptions<FrameOptions>().Bind(configuration.GetSection("Frames")).Validate(x => x.IsValid(), "Invalid frame configuration").ValidateOnStart();
         services.AddSingleton<IFrameArtifacts, LocalFrameArtifacts>(); services.AddSingleton<IFrameExtractor, FfmpegFrameExtractor>(); services.AddSingleton<IFrameStore, PostgresFrameStore>();
         services.AddSingleton<FrameService>(); services.AddSingleton<FrameExecutor>();
+        services.AddSingleton<IPreparationMediaAccess, PreparationMediaAccess>();
+        services.AddOptions<PreparationOptions>().Bind(configuration.GetSection("Preparation")).Validate(x => x.IsValid(), "Invalid preparation configuration").ValidateOnStart();
+        services.AddSingleton<IPreparationStore, PostgresPreparationStore>(); services.AddSingleton<IPreparationChecker, PreparationChecker>(); services.AddSingleton<PreparationService>(); services.AddSingleton<PreparationExecutor>();
         services.AddHealthChecks().AddCheck<DatabaseHealth>("postgresql", tags: ["ready"]);
         return services;
     }
@@ -64,6 +67,9 @@ public sealed class DatabaseHealth(IDbContextFactory<PlatformDbContext> factory)
             await db.AudioExtractions.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             await db.FrameSamplings.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             await db.FrameSamples.AsNoTracking().Select(x => x.Ordinal).Take(1).ToListAsync(ct);
+            await db.PreparationReviews.AsNoTracking().Select(x => x.ImportId).Take(1).ToListAsync(ct);
+            await db.PreparationValidations.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
+            await db.PreparationAudits.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             return HealthCheckResult.Healthy();
         }
         catch (Exception ex) when (ex is not OperationCanceledException) { return HealthCheckResult.Unhealthy("Database or schema unavailable."); }

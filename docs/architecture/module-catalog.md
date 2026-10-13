@@ -21,3 +21,5 @@ Cross-module references use identities and explicit contracts. Avoid cross-modul
 
 VideoProcessing now also owns FrameSamplings/FrameSamples and the actual scene-quantile PNG artifact lifecycle. Current application table count is 16 across jobs/media/video, plus EF migration history. No later-phase module tables are created.
 
+
+VideoProcessing now also owns PreparationReviews/PreparationValidations/PreparationAudits and technical preparation checks/review. Current application table count is 19 across jobs/media/video, plus EF migration history. Rights approval/revocation and later-phase module entities remain deferred.

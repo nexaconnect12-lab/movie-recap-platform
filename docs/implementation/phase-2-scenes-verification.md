@@ -57,3 +57,5 @@ Next proposed Phase 2 task: source-preserving selected-audio extraction with man
 Historical slice evidence. Latest full-suite verification: [Phase 2 audio](phase-2-audio-verification.md).
 
 Historical slice evidence. Latest full-suite verification: [Phase 2 frames](phase-2-frames-verification.md).
+
+Historical slice evidence. Latest full-suite verification: [Phase 2 preparation](phase-2-preparation-verification.md).

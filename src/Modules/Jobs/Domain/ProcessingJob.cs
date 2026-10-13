@@ -23,7 +23,7 @@ public sealed class ProcessingJob
 
     public static ProcessingJob Create(string kind, string key, int maxAttempts, DateTimeOffset now)
     {
-        if (kind is not ("foundation.database-check" or "media.manual-import" or "media.stream-inspection" or "video.scene-analysis" or "video.audio-extraction" or "video.frame-sampling")) throw new ArgumentException("Unsupported job kind.");
+        if (kind is not ("foundation.database-check" or "media.manual-import" or "media.stream-inspection" or "video.scene-analysis" or "video.audio-extraction" or "video.frame-sampling" or "video.preparation-validation")) throw new ArgumentException("Unsupported job kind.");
         if (string.IsNullOrWhiteSpace(key) || key.Length > 128) throw new ArgumentException("Invalid idempotency key.");
         if (maxAttempts is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(maxAttempts));
         return new()
@@ -113,5 +113,6 @@ public sealed class JobAudit
     public int Attempt { get; set; }
     public DateTimeOffset At { get; set; }
 }
+
 
 

@@ -172,7 +172,7 @@ public sealed class AudioTests
         // Queued prior-scene records are preserved; no successful processing is fabricated.
         await using var db = await f.Factory.CreateDbContextAsync(); await db.Database.MigrateAsync(); await db.Database.MigrateAsync();
         Assert.Empty(await db.AudioExtractions.ToListAsync()); Assert.Equal(created.Analysis.Id, (await db.SceneAnalyses.SingleAsync()).Id); Assert.Equal(source.SelectionVersion, (await Media(f, folder).GetAsync(source.ImportId, default))!.SelectionVersion);
-        Assert.Equal(Rights, (await db.ImportRights.SingleAsync()).Details); Assert.Equal(8, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(Rights, (await db.ImportRights.SingleAsync()).Details); Assert.Equal(9, (await db.Database.GetAppliedMigrationsAsync()).Count());
     }
     static async Task ChangeSelection(DatabaseFixture f, Folder folder, Guid id, int? audio)
     {
@@ -215,4 +215,5 @@ public sealed class AudioTests
         public void Dispose() => Directory.Delete(Root, true);
     }
 }
+
 

@@ -706,6 +706,188 @@ namespace MovieRecap.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.PreparationAudit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("AfterVersion")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("BeforeVersion")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ImportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<long>("Sequence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Sequence"));
+
+                    b.Property<string>("SnapshotHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("ValidationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Sequence")
+                        .IsUnique();
+
+                    b.HasIndex("ValidationId");
+
+                    b.HasIndex("ImportId", "Sequence");
+
+                    b.ToTable("PreparationAudits", "video");
+                });
+
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.PreparationReview", b =>
+                {
+                    b.Property<Guid>("ImportId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DecidedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("DecisionSnapshotHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("DecisionValidationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("LastValidationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool?>("ValidationPassed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ValidationSnapshotHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ImportId");
+
+                    b.HasIndex("DecisionValidationId");
+
+                    b.HasIndex("LastValidationId");
+
+                    b.ToTable("PreparationReviews", "video", t =>
+                        {
+                            t.HasCheckConstraint("CK_Review_Decision", "(\"DecidedAt\" IS NULL AND \"DecidedBy\" IS NULL AND \"Notes\" IS NULL AND \"DecisionSnapshotHash\" IS NULL) OR (\"DecidedAt\" IS NOT NULL AND \"DecidedBy\" IS NOT NULL AND \"Notes\" IS NOT NULL AND \"DecisionSnapshotHash\" IS NOT NULL AND \"DecisionSnapshotHash\" ~ '^[0-9a-f]{64}$')");
+
+                            t.HasCheckConstraint("CK_Review_Status", "\"Status\" IN ('Pending','Approved','Rejected','Stale')");
+
+                            t.HasCheckConstraint("CK_Review_Validation", "(\"LastValidationId\" IS NULL AND \"ValidationSnapshotHash\" IS NULL AND \"ValidationPassed\" IS NULL) OR (\"LastValidationId\" IS NOT NULL AND \"ValidationSnapshotHash\" IS NOT NULL AND \"ValidationSnapshotHash\" ~ '^[0-9a-f]{64}$' AND \"ValidationPassed\" IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.PreparationValidation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("ImportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("IssuesJson")
+                        .HasMaxLength(65536)
+                        .HasColumnType("character varying(65536)");
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("MaxAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<bool?>("Passed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("SnapshotHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId")
+                        .IsUnique();
+
+                    b.HasIndex("ImportId", "CreatedAt");
+
+                    b.HasIndex("ImportId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.ToTable("PreparationValidations", "video", t =>
+                        {
+                            t.HasCheckConstraint("CK_Validation_Binding", "\"SnapshotHash\" ~ '^[0-9a-f]{64}$' AND \"MaxAttempts\" BETWEEN 1 AND 5");
+
+                            t.HasCheckConstraint("CK_Validation_Completion", "(\"CompletedAt\" IS NULL AND \"Passed\" IS NULL AND \"IssuesJson\" IS NULL) OR (\"CompletedAt\" IS NOT NULL AND \"Passed\" IS NOT NULL AND \"IssuesJson\" IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.SceneAnalysis", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1095,6 +1277,148 @@ namespace MovieRecap.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("AnalysisId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.PreparationAudit", b =>
+                {
+                    b.HasOne("MovieRecap.VideoProcessing.Domain.PreparationReview", null)
+                        .WithMany()
+                        .HasForeignKey("ImportId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MovieRecap.VideoProcessing.Domain.PreparationValidation", null)
+                        .WithMany()
+                        .HasForeignKey("ValidationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.OwnsOne("MovieRecap.VideoProcessing.Domain.PreparationBinding", "Binding", b1 =>
+                        {
+                            b1.Property<Guid>("PreparationAuditId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid?>("AssetId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid?>("AudioId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<int?>("AudioIndex")
+                                .HasColumnType("integer");
+
+                            b1.Property<Guid?>("FrameId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid>("ImportId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid?>("InventoryVersion")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid?>("SceneId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid?>("SelectionVersion")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("SourceSha256")
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)");
+
+                            b1.Property<long?>("SourceSizeBytes")
+                                .HasColumnType("bigint");
+
+                            b1.Property<int?>("SubtitleIndex")
+                                .HasColumnType("integer");
+
+                            b1.Property<int?>("VideoIndex")
+                                .HasColumnType("integer");
+
+                            b1.HasKey("PreparationAuditId");
+
+                            b1.ToTable("PreparationAudits", "video");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PreparationAuditId");
+                        });
+
+                    b.Navigation("Binding")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.PreparationReview", b =>
+                {
+                    b.HasOne("MovieRecap.VideoProcessing.Domain.PreparationValidation", null)
+                        .WithMany()
+                        .HasForeignKey("DecisionValidationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("MovieRecap.VideoProcessing.Domain.PreparationValidation", null)
+                        .WithMany()
+                        .HasForeignKey("LastValidationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.PreparationValidation", b =>
+                {
+                    b.HasOne("MovieRecap.VideoProcessing.Domain.PreparationReview", null)
+                        .WithMany()
+                        .HasForeignKey("ImportId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.OwnsOne("MovieRecap.VideoProcessing.Domain.PreparationBinding", "Binding", b1 =>
+                        {
+                            b1.Property<Guid>("PreparationValidationId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid?>("AssetId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid?>("AudioId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<int?>("AudioIndex")
+                                .HasColumnType("integer");
+
+                            b1.Property<Guid?>("FrameId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid>("ImportId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid?>("InventoryVersion")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid?>("SceneId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid?>("SelectionVersion")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("SourceSha256")
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)");
+
+                            b1.Property<long?>("SourceSizeBytes")
+                                .HasColumnType("bigint");
+
+                            b1.Property<int?>("SubtitleIndex")
+                                .HasColumnType("integer");
+
+                            b1.Property<int?>("VideoIndex")
+                                .HasColumnType("integer");
+
+                            b1.HasKey("PreparationValidationId");
+
+                            b1.ToTable("PreparationValidations", "video");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PreparationValidationId");
+                        });
+
+                    b.Navigation("Binding")
                         .IsRequired();
                 });
 #pragma warning restore 612, 618

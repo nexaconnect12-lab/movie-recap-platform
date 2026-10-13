@@ -67,3 +67,5 @@ Sampling uses deterministic decoded quantiles, not semantic highlight scoring. T
 Storage is trusted/shared local scope, and directory rename plus PostgreSQL commit is not a distributed transaction. Unreferenced crash/rollback output remains inaccessible until retry/explicit cleanup. Failed/abrupt cleanup may leave files; no global janitor/retention/deletion policy is delivered. Ownership/lock markers and successful history are retained; unknown entries are preserved. Backup/restore must keep referenced batch trees with database state; power-loss durability depends on deployment storage.
 
 Rights/operator identity remain caller assertions and rights Unreviewed under shared-key access. No service installation/SCM or production deployment was tested. Next proposed Phase 2 task: operator review/validation of prepared scene/audio/frame artifacts with bounded listing and availability checks, subject to separate confirmation. ASR/AI, Burmese TTS, subtitle extraction, recap rendering, UI and publishing remain absent.
+
+Historical slice evidence. Latest full-suite verification: [Phase 2 preparation](phase-2-preparation-verification.md).

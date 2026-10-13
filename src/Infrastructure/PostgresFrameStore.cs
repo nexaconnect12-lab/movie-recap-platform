@@ -50,6 +50,7 @@ public sealed class PostgresFrameStore(IDbContextFactory<PlatformDbContext> fact
     {
         if (lease.Kind != "video.frame-sampling" || result.Token != lease.Token || attempt.Token != lease.Token) throw new FrameException("frame-attempt-binding-mismatch");
         await using var db = await factory.CreateDbContextAsync(ct); await using var tx = await db.Database.BeginTransactionAsync(ct); await LockAsync(db, "frame-operation:" + attempt.SamplingId.ToString("N"), ct);
+        await PreparationTransactions.LockAsync(db, source.ImportId, ct);
         IJobTransaction jobs = new PostgresJobTransaction(db, clock); await jobs.RequireLeaseAsync(lease, ct);
         ISelectedVideoTransaction selected = new PostgresSelectedVideoTransaction(db); await selected.RequireAsync(source, ct);
         var s = await db.FrameSamplings.SingleAsync(x => x.JobId == lease.JobId, ct); if (s.Id != attempt.SamplingId) throw new FrameException("frame-result-binding-mismatch");
@@ -66,3 +67,4 @@ public sealed class PostgresFrameStore(IDbContextFactory<PlatformDbContext> fact
     }
     static Task<int> LockAsync(PlatformDbContext db, string key, CancellationToken ct) => db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", ct);
 }
+

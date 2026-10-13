@@ -359,8 +359,23 @@ public sealed class HostSmokeTests(ITestOutputHelper output)
                 if (i == 0) Assert.True(color.R > 200 && color.G < 20); else if (i == 1) Assert.True(color.R > 200 && color.G > 200 && color.B > 200); else Assert.True(color.R < 20 && color.G < 20 && color.B < 20);
             }
             Assert.Equal(new[] { "created", "started", "succeeded" }, (await client.GetFromJsonAsync<List<AuditResponse>>($"/api/jobs/{batch.Job.Id}/audit"))!.Select(x => x.Action));
+            var preparationRoute = $"/api/media/imports/{imported.Import.Id}/preparation";
+            var preparation = (await client.GetFromJsonAsync<PreparationResponse>(preparationRoute, JsonOptions))!; Assert.True(preparation.Snapshot.IsReady); Assert.True(preparation.NeedsValidation);
+            var validationResponse = await client.PostAsJsonAsync(preparationRoute + "/validations", new RequestPreparationValidation("host-validation", preparation.Snapshot.SnapshotHash, "review-operator", 1)); Assert.Equal(HttpStatusCode.Created, validationResponse.StatusCode);
+            var validation = (await validationResponse.Content.ReadFromJsonAsync<PreparationValidationResponse>(JsonOptions))!; deadline = DateTime.UtcNow.AddSeconds(40);
+            while (validation.Job.Status is JobStatus.Queued or JobStatus.Running)
+            {
+                Assert.True(DateTime.UtcNow < deadline, "Preparation validation did not finish."); await Task.Delay(100); validation = (await client.GetFromJsonAsync<PreparationValidationResponse>($"/api/video/preparation-validations/{validation.Validation.Id}", JsonOptions))!;
+            }
+            Assert.Equal(JobStatus.Succeeded, validation.Job.Status); Assert.True(validation.Validation.Passed); Assert.Empty(validation.Issues);
+            preparation = (await client.GetFromJsonAsync<PreparationResponse>(preparationRoute, JsonOptions))!; Assert.False(preparation.NeedsValidation);
+            var approval = await client.PostAsJsonAsync(preparationRoute + "/decision", new DecidePreparation(preparation.Review!.Version, preparation.Snapshot.SnapshotHash, MovieRecap.VideoProcessing.Domain.PreparationStatus.Approved, "review-operator", "Owned scene thumbnails reviewed")); Assert.Equal(HttpStatusCode.OK, approval.StatusCode);
+            preparation = (await approval.Content.ReadFromJsonAsync<PreparationResponse>(JsonOptions))!; Assert.Equal(MovieRecap.VideoProcessing.Domain.PreparationStatus.Approved, preparation.EffectiveStatus);
+            var reviewAudit = (await client.GetFromJsonAsync<List<PreparationAuditResponse>>(preparationRoute + "/audit"))!; Assert.Equal(new[] { "created", "validation-passed", "approved" }, reviewAudit.OrderBy(x => x.Sequence).Select(x => x.Action));
             Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"/api/media/imports/{imported.Import.Id}/stream-selection", new SelectStreams(selection.Version, 0, null, null, "changed"))).StatusCode);
             var historical = (await client.GetFromJsonAsync<FrameResponse>($"/api/video/frame-samplings/{batch.Sampling.Id}", JsonOptions))!; Assert.False(historical.IsCurrentSelection); Assert.Equal(JobStatus.Succeeded, historical.Job.Status);
+            var stalePreparation = (await client.GetFromJsonAsync<PreparationResponse>(preparationRoute, JsonOptions))!; Assert.Equal(MovieRecap.VideoProcessing.Domain.PreparationStatus.Stale, stalePreparation.EffectiveStatus); Assert.True(stalePreparation.NeedsValidation);
+            output.WriteLine($"Preparation smoke: import {imported.Import.Id}, validation {validation.Validation.Id}, job {validation.Job.Id}; actual source/PNG checks passed, versioned approval/audit recorded, selection change marked review Stale; no publishing authorization granted.");
             Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/video/frame-samplings/{batch.Sampling.Id}/samples/0")).StatusCode); Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/video/frame-samplings/{batch.Sampling.Id}/cleanup", null)).StatusCode);
             Assert.Equal(3, Directory.GetFiles(artifacts, "*.png", SearchOption.AllDirectories).Length); Assert.Equal(original, File.ReadAllBytes(path)); Assert.Equal(stamp, File.GetLastWriteTimeUtc(path));
             output.WriteLine($"Frame smoke: batch {batch.Sampling.Id}, job {batch.Job.Id}, analysis {scene.Analysis.Id}; selected video 1 sampled red/white/black at decoded frames 10/30/50, source/normalized seconds 1/3/5, 320x180 verified PNGs; source and historical downloads preserved.");
@@ -372,6 +387,12 @@ public sealed class HostSmokeTests(ITestOutputHelper output)
         }
     }
     sealed record FrameIdentity(Guid Id, string? FfmpegVersion);
+    sealed record PreparationSnapshotResponse(string SnapshotHash, bool IsReady);
+    sealed record PreparationReviewResponse(Guid Version);
+    sealed record PreparationResponse(PreparationSnapshotResponse Snapshot, PreparationReviewResponse? Review, MovieRecap.VideoProcessing.Domain.PreparationStatus EffectiveStatus, bool NeedsValidation);
+    sealed record PreparationValidationIdentity(Guid Id, bool? Passed);
+    sealed record PreparationValidationResponse(PreparationValidationIdentity Validation, JobView Job, List<MovieRecap.VideoProcessing.Domain.PreparationIssue> Issues);
+    sealed record PreparationAuditResponse(long Sequence, string Action);
     sealed record FrameSampleResponse(int Ordinal, int FrameIndex, double? SourceSeconds, double? NormalizedSeconds, string? Sha256);
     sealed record FrameResponse(FrameIdentity Sampling, JobView Job, bool IsCurrentSelection, List<FrameSampleResponse> Samples);
     sealed record AudioResponse(AudioIdentity Extraction, JobView Job, bool IsCurrentSelection);

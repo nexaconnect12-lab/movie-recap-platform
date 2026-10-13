@@ -63,3 +63,5 @@ Fixed downmix/resampling is a derived analysis profile, not original-channel/cod
 Rights and operator identity remain caller assertions under shared-key access; rights stay Unreviewed and no publication gate/service is delivered. No SCM service installation/production deployment was tested. Next proposed Phase 2 slice is source-bound scene thumbnails/frame sampling using managed artifacts with explicit timestamp mapping, subject to separate confirmation. ASR/AI, Burmese TTS, subtitle extraction, rendering, UI and publishing remain absent.
 
 Historical slice evidence. Latest full-suite verification: [Phase 2 frames](phase-2-frames-verification.md).
+
+Historical slice evidence. Latest full-suite verification: [Phase 2 preparation](phase-2-preparation-verification.md).

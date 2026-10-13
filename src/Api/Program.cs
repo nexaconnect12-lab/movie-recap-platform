@@ -27,7 +27,7 @@ var app = builder.Build();
 app.UseExceptionHandler(error => error.Run(async context =>
 {
     var ex = context.Features.Get<IExceptionHandlerFeature>()!.Error;
-    var status = ex switch { BadHttpRequestException requestError => requestError.StatusCode, System.Text.Json.JsonException or ValidationException or ImportException or SceneException or AudioException or FrameException => 400, JobConflictException or ImportConflictException or DbUpdateConcurrencyException => 409, _ => 500 };
+    var status = ex switch { BadHttpRequestException requestError => requestError.StatusCode, System.Text.Json.JsonException or ValidationException or ImportException or SceneException or AudioException or FrameException or PreparationException => 400, JobConflictException or ImportConflictException or DbUpdateConcurrencyException => 409, _ => 500 };
     if (status == 500) app.Logger.LogError(ex, "Request failed {TraceId}", context.TraceIdentifier);
     await Results.Problem(statusCode: status, title: status == 500 ? "Internal server error" : ex is BadHttpRequestException or System.Text.Json.JsonException ? "Invalid request body" : ex.Message,
         extensions: ex is ValidationException v ? new Dictionary<string, object?> { ["errors"] = v.Errors.Select(e => new { e.PropertyName, e.ErrorMessage }) } : null).ExecuteAsync(context);
@@ -45,6 +45,18 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => fa
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = x => x.Tags.Contains("ready") });
 app.MapOpenApi();
 var imports = app.MapGroup("/api/media/imports").WithTags("Media imports");
+imports.MapGet("/{id:guid}/preparation", async (Guid id, int? limit, PreparationService service, CancellationToken ct) =>
+    await service.GetAsync(id, limit ?? 5, ct) is { } result ? Results.Ok(result) : Results.NotFound());
+imports.MapPost("/{id:guid}/preparation/validations", async (Guid id, RequestPreparationValidation request, PreparationService service, CancellationToken ct) =>
+{
+    var result = await service.ValidateAsync(id, request, ct); return result is null ? Results.NotFound() : Results.Created($"/api/video/preparation-validations/{result.Validation.Id}", result);
+});
+imports.MapPost("/{id:guid}/preparation/decision", async (Guid id, DecidePreparation request, PreparationService service, CancellationToken ct) =>
+    await service.DecideAsync(id, request, ct) is { } result ? Results.Ok(result) : Results.NotFound());
+imports.MapGet("/{id:guid}/preparation/audit", async (Guid id, int? limit, IPreparationMediaAccess media, IPreparationStore store, CancellationToken ct) =>
+    await media.GetAsync(id, ct) is null ? Results.NotFound() : Results.Ok(await store.AuditAsync(id, limit ?? 50, ct)));
+app.MapGet("/api/video/preparation-validations/{id:guid}", async (Guid id, IPreparationStore store, CancellationToken ct) =>
+    await store.ValidationAsync(id, ct) is { } result ? Results.Ok(result) : Results.NotFound()).WithTags("Preparation review");
 imports.MapPost("/{id:guid}/audio-extractions", async (Guid id, RequestAudio request, AudioService service, CancellationToken ct) =>
 {
     var result = await service.CreateAsync(id, request, ct); return result is null ? Results.NotFound() : Results.Created($"/api/video/audio-extractions/{result.Extraction.Id}", result);
@@ -146,5 +158,6 @@ foreach (var command in Enum.GetValues<JobCommand>())
 await app.RunAsync();
 public sealed record VersionRequest(Guid Version);
 public partial class Program { }
+
 
 

@@ -23,6 +23,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<AudioExtraction> AudioExtractions => Set<AudioExtraction>();
     public DbSet<FrameSampling> FrameSamplings => Set<FrameSampling>();
     public DbSet<FrameSample> FrameSamples => Set<FrameSample>();
+    public DbSet<PreparationReview> PreparationReviews => Set<PreparationReview>();
+    public DbSet<PreparationValidation> PreparationValidations => Set<PreparationValidation>();
+    public DbSet<PreparationAudit> PreparationAudits => Set<PreparationAudit>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         var j = model.Entity<ProcessingJob>();
@@ -144,6 +147,28 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             t.HasCheckConstraint("CK_Sample_Plan", "\"Ordinal\" BETWEEN 0 AND 299 AND \"SceneOrdinal\" >= 0 AND \"FrameIndex\" >= 0 AND \"StartSeconds\" >= 0 AND \"EndSeconds\" > \"StartSeconds\"");
             t.HasCheckConstraint("CK_Sample_Result", "(\"SourceSeconds\" IS NULL AND \"NormalizedSeconds\" IS NULL AND \"Sha256\" IS NULL AND \"SizeBytes\" IS NULL) OR (\"SourceSeconds\" IS NOT NULL AND \"NormalizedSeconds\" IS NOT NULL AND \"NormalizedSeconds\" >= \"StartSeconds\" - 0.000001 AND \"NormalizedSeconds\" < \"EndSeconds\" AND \"Sha256\" IS NOT NULL AND \"Sha256\" ~ '^[0-9a-f]{64}$' AND \"SizeBytes\" IS NOT NULL AND \"SizeBytes\" BETWEEN 1 AND 4194304)");
         });
+        var review = model.Entity<PreparationReview>(); review.ToTable("PreparationReviews", "video"); review.HasKey(x => x.ImportId); review.Property(x => x.Version).IsConcurrencyToken(); review.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+        review.Property(x => x.ValidationSnapshotHash).HasMaxLength(64); review.Property(x => x.DecisionSnapshotHash).HasMaxLength(64); review.Property(x => x.DecidedBy).HasMaxLength(256); review.Property(x => x.Notes).HasMaxLength(2048);
+        review.HasOne<PreparationValidation>().WithMany().HasForeignKey(x => x.LastValidationId).OnDelete(DeleteBehavior.Restrict); review.HasOne<PreparationValidation>().WithMany().HasForeignKey(x => x.DecisionValidationId).OnDelete(DeleteBehavior.Restrict);
+        review.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_Review_Status", "\"Status\" IN ('Pending','Approved','Rejected','Stale')");
+            t.HasCheckConstraint("CK_Review_Validation", "(\"LastValidationId\" IS NULL AND \"ValidationSnapshotHash\" IS NULL AND \"ValidationPassed\" IS NULL) OR (\"LastValidationId\" IS NOT NULL AND \"ValidationSnapshotHash\" IS NOT NULL AND \"ValidationSnapshotHash\" ~ '^[0-9a-f]{64}$' AND \"ValidationPassed\" IS NOT NULL)");
+            t.HasCheckConstraint("CK_Review_Decision", "(\"DecidedAt\" IS NULL AND \"DecidedBy\" IS NULL AND \"Notes\" IS NULL AND \"DecisionSnapshotHash\" IS NULL) OR (\"DecidedAt\" IS NOT NULL AND \"DecidedBy\" IS NOT NULL AND \"Notes\" IS NOT NULL AND \"DecisionSnapshotHash\" IS NOT NULL AND \"DecisionSnapshotHash\" ~ '^[0-9a-f]{64}$')");
+        });
+        var validation = model.Entity<PreparationValidation>(); validation.ToTable("PreparationValidations", "video"); validation.HasKey(x => x.Id); validation.Property(x => x.IdempotencyKey).HasMaxLength(128); validation.Property(x => x.RequestedBy).HasMaxLength(256); validation.Property(x => x.SnapshotHash).HasMaxLength(64); validation.Property(x => x.IssuesJson).HasMaxLength(65536);
+        validation.HasIndex(x => new { x.ImportId, x.IdempotencyKey }).IsUnique(); validation.HasIndex(x => x.JobId).IsUnique(); validation.HasIndex(x => new { x.ImportId, x.CreatedAt });
+        validation.HasOne<PreparationReview>().WithMany().HasForeignKey(x => x.ImportId).OnDelete(DeleteBehavior.Restrict);
+        validation.OwnsOne(x => x.Binding, b => { b.Ignore(x => x.Hash); b.Ignore(x => x.IsReady); b.Property(x => x.SourceSha256).HasMaxLength(64); }); validation.Navigation(x => x.Binding).IsRequired();
+        validation.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_Validation_Binding", "\"SnapshotHash\" ~ '^[0-9a-f]{64}$' AND \"MaxAttempts\" BETWEEN 1 AND 5");
+            t.HasCheckConstraint("CK_Validation_Completion", "(\"CompletedAt\" IS NULL AND \"Passed\" IS NULL AND \"IssuesJson\" IS NULL) OR (\"CompletedAt\" IS NOT NULL AND \"Passed\" IS NOT NULL AND \"IssuesJson\" IS NOT NULL)");
+        });
+        var preparationAudit = model.Entity<PreparationAudit>(); preparationAudit.ToTable("PreparationAudits", "video"); preparationAudit.HasKey(x => x.Id); preparationAudit.Property(x => x.Sequence).UseIdentityAlwaysColumn(); preparationAudit.HasIndex(x => x.Sequence).IsUnique(); preparationAudit.HasIndex(x => new { x.ImportId, x.Sequence });
+        preparationAudit.Property(x => x.Action).HasMaxLength(32); preparationAudit.Property(x => x.SnapshotHash).HasMaxLength(64); preparationAudit.Property(x => x.RequestedBy).HasMaxLength(256); preparationAudit.Property(x => x.Notes).HasMaxLength(2048);
+        preparationAudit.HasOne<PreparationReview>().WithMany().HasForeignKey(x => x.ImportId).OnDelete(DeleteBehavior.Restrict); preparationAudit.HasOne<PreparationValidation>().WithMany().HasForeignKey(x => x.ValidationId).OnDelete(DeleteBehavior.Restrict);
+        preparationAudit.OwnsOne(x => x.Binding, b => { b.Ignore(x => x.Hash); b.Ignore(x => x.IsReady); b.Property(x => x.SourceSha256).HasMaxLength(64); }); preparationAudit.Navigation(x => x.Binding).IsRequired();
     }
 }
 public sealed class DesignFactory : IDesignTimeDbContextFactory<PlatformDbContext>
