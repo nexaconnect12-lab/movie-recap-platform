@@ -1,4 +1,6 @@
 # Phase 1 architecture and implementation plan
+
+The separately confirmed Phase 2 local activation is now complete; see [acceptance evidence](phase-2-activation.md), [deployment/rollback](../deployment/phase-2-activation.md) and ADR 0012. Earlier slice notes below record preservation of the original hosts/database before this activation.
 Inspected the supplied working directory on 2026-10-12: only empty work and outputs folders existed, with no solution or applicable AGENTS.md. Specification: attached Codex Master Prompt — AI Movie Recap Automation Platform (Pasted text.txt). Deliverables were initially created in outputs/MovieRecapPlatform. The canonical project location is now D:\DevOps\movie-recap-platform, as requested by the user; the existing matching copy was retained without replacing source files.
 
 1. Create net10.0 projects and clean dependency boundaries.

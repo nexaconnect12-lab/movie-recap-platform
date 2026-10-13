@@ -1,5 +1,7 @@
 # Phase 2 preparation verification — 2026-10-13 (Asia/Singapore)
 
+This records earlier isolated implementation verification. The subsequently confirmed [local activation and acceptance](phase-2-activation.md) migrated `recap` and restarted live hosts; deployment statements below describe that earlier verification boundary.
+
 Scope: separately proposed and confirmed prepared-artifact review/validation slice. Existing solution/instructions/docs were inspected before authorized changes. Original media/import rights/application database/hosts were preserved. No later-phase implementation, simulated media completion or publication authorization was added.
 
 ## Environment and exact commands

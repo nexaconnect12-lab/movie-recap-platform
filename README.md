@@ -18,6 +18,8 @@ Scene thumbnails now use real FFmpeg to sample chosen-video decoded frames from 
 A combined preparation API now shows current stream choices, completed scenes/audio/thumbnails and bounded job history. Durable validation jobs perform actual source/WAV/PNG integrity checks. Operators can approve or reject a versioned snapshot with audited notes; changed preparation or new validation makes prior decisions stale. Approval rechecks files and grants no publishing permission. Apply `VideoPreparationReview` and configure matching Media/Audio/Frames roots on both hosts. See [preparation API](docs/api/preparation-review.md), [implementation](docs/implementation/phase-2-preparation.md) and [latest verification](docs/implementation/phase-2-preparation-verification.md). No transcript, AI/TTS, recap rendering or publishing is implemented.
 
 ## Local startup (Windows PowerShell 7)
+
+The local Phase 2 release has now been explicitly activated with shared rehearsal roots and real media tools. See [activation, host management and rollback](docs/deployment/phase-2-activation.md) and [activation acceptance results](docs/implementation/phase-2-activation.md). Use `scripts/Set-ActivatedEnvironment.ps1` and `scripts/Start-ActivatedHosts.ps1` for that retained release. The original foundation startup below remains a from-source setup example.
 Prerequisites: .NET 10 SDK and Docker Desktop with Linux containers. Run these commands from this folder:
 
 ```powershell

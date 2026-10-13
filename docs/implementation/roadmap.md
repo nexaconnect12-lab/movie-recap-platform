@@ -15,7 +15,9 @@ Phase 2 frame slice: real selected-video scene quantile PNGs, actual PTS/offset 
 
 Phase 2 preparation slice: combined current preparation view, real source/WAV/PNG validation jobs, explicit snapshot bindings, versioned operator decisions/notes/audits and stale-review detection. See phase-2-preparation.md and phase-2-preparation-verification.md.
 
-Next work: separately scoped Phase 2 activation/acceptance rehearsal with configured local roots and protected environment. Other preprocessing and ASR/AI/TTS/rendering/publishing remain separately scoped; this does not claim all Phase 2 capabilities complete or authorize Phase 3.
+Phase 2 activation: application database migrated, isolated hosts activated, protected backups restore-verified, and real owned-fixture preparation accepted with cancellation/recovery/staleness/duplicate/source-preservation checks. See [activation evidence](phase-2-activation.md) and [deployment guide](../deployment/phase-2-activation.md).
+
+Next work: scope remaining Phase 2 preprocessing requirements, such as selected subtitle extraction. ASR/AI/TTS/rendering/publishing remain separately scoped; this does not claim all Phase 2 capabilities complete or authorize Phase 3.
 
 Phase 3: chunked ASR/frame analysis, grounded outline, recap generation/versioned editor/approval.
 Phase 4: Burmese language adapter, verified real TTS voice, chunks/normalization, aligned subtitles and exports.

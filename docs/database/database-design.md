@@ -1,6 +1,8 @@
 # Database design
 Implemented schemas: jobs, media and video. EF generated InitialJobs, AuditOrdering, ManualMediaImport, MediaDiscoveryInbox, MediaStreamSelection, VideoSceneAnalysis, VideoAudioExtraction, VideoFrameSampling and VideoPreparationReview migrations and model snapshot are in src/Infrastructure/Persistence/Migrations. EF migration history is in the default public schema.
 
+All nine migrations are now applied to local application database `recap`, following the confirmed 2026-10-13 activation: jobs has 2 tables, media 9 and video 8, for 19 application tables plus EF history. Original foundation records were preserved, both pre-upgrade dumps restore-verified and real preparation acceptance passed. See [activation evidence](../implementation/phase-2-activation.md). Earlier verification reports describe their historical disposable-test-only deployment state.
+
 ProcessingJobs: UUID primary key; Kind (64), unique IdempotencyKey (128), string Status (32), Attempts, MaxAttempts, Progress, CreatedAt/UpdatedAt/AvailableAt (timestamptz), nullable WorkerId (128), LeaseToken/LeaseExpiresAt, ErrorCode (128), Version UUID concurrency token. Indexes on Status+AvailableAt and LeaseExpiresAt. Checks constrain progress and retry budget.
 
 AuditLogs: UUID key, JobId restrictive foreign key, action (64), resulting status (32), attempt and UTC timestamp; index JobId+At. A database-generated unique Sequence orders events deterministically even when timestamps match. No delete API. Audit retention/export is future administration work.
