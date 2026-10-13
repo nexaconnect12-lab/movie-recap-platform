@@ -21,6 +21,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<SceneAnalysis> SceneAnalyses => Set<SceneAnalysis>();
     public DbSet<MovieScene> MovieScenes => Set<MovieScene>();
     public DbSet<AudioExtraction> AudioExtractions => Set<AudioExtraction>();
+    public DbSet<FrameSampling> FrameSamplings => Set<FrameSampling>();
+    public DbSet<FrameSample> FrameSamples => Set<FrameSample>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         var j = model.Entity<ProcessingJob>();
@@ -125,6 +127,22 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             t.HasCheckConstraint("CK_Audio_Binding", "\"AudioIndex\" >= 0 AND \"SourceSizeBytes\" > 0 AND \"SourceSha256\" ~ '^[0-9a-f]{64}$' AND \"MaxAttempts\" BETWEEN 1 AND 5 AND \"Profile\" = 'wav-pcm-s16le-16000-mono-v1'");
             t.HasCheckConstraint("CK_Audio_Completion", "(\"CompletedAt\" IS NULL AND \"ArtifactToken\" IS NULL AND \"ArtifactSha256\" IS NULL AND \"ArtifactSizeBytes\" IS NULL AND \"Samples\" IS NULL AND \"FfmpegVersion\" IS NULL) OR (\"CompletedAt\" IS NOT NULL AND \"ArtifactToken\" IS NOT NULL AND \"ArtifactSha256\" IS NOT NULL AND \"ArtifactSha256\" ~ '^[0-9a-f]{64}$' AND \"Samples\" IS NOT NULL AND \"Samples\" > 0 AND \"Samples\" <= 2147483629 AND \"ArtifactSizeBytes\" IS NOT NULL AND \"ArtifactSizeBytes\" = 44 + 2 * \"Samples\" AND \"FfmpegVersion\" IS NOT NULL)");
+        });
+        var sampling = model.Entity<FrameSampling>(); sampling.ToTable("FrameSamplings", "video"); sampling.HasKey(x => x.Id);
+        sampling.Property(x => x.IdempotencyKey).HasMaxLength(128); sampling.Property(x => x.RequestedBy).HasMaxLength(256); sampling.Property(x => x.Profile).HasMaxLength(64); sampling.Property(x => x.FfmpegVersion).HasMaxLength(256);
+        sampling.HasIndex(x => new { x.SceneAnalysisId, x.IdempotencyKey }).IsUnique(); sampling.HasIndex(x => x.JobId).IsUnique(); sampling.HasIndex(x => new { x.SceneAnalysisId, x.CreatedAt });
+        sampling.HasOne<SceneAnalysis>().WithMany().HasForeignKey(x => x.SceneAnalysisId).OnDelete(DeleteBehavior.Restrict);
+        sampling.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_Sampling_Settings", "\"SamplesPerScene\" BETWEEN 1 AND 3 AND \"MaxAttempts\" BETWEEN 1 AND 5 AND \"Profile\" = 'png-rgb24-320x180-frame-quantiles-v1'");
+            t.HasCheckConstraint("CK_Sampling_Completion", "(\"CompletedAt\" IS NULL AND \"ArtifactToken\" IS NULL AND \"FfmpegVersion\" IS NULL) OR (\"CompletedAt\" IS NOT NULL AND \"ArtifactToken\" IS NOT NULL AND \"FfmpegVersion\" IS NOT NULL)");
+        });
+        var sample = model.Entity<FrameSample>(); sample.ToTable("FrameSamples", "video"); sample.HasKey(x => new { x.SamplingId, x.Ordinal }); sample.Ignore(x => x.Plan); sample.Property(x => x.Sha256).HasMaxLength(64);
+        sample.HasOne<FrameSampling>().WithMany().HasForeignKey(x => x.SamplingId).OnDelete(DeleteBehavior.Restrict);
+        sample.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_Sample_Plan", "\"Ordinal\" BETWEEN 0 AND 299 AND \"SceneOrdinal\" >= 0 AND \"FrameIndex\" >= 0 AND \"StartSeconds\" >= 0 AND \"EndSeconds\" > \"StartSeconds\"");
+            t.HasCheckConstraint("CK_Sample_Result", "(\"SourceSeconds\" IS NULL AND \"NormalizedSeconds\" IS NULL AND \"Sha256\" IS NULL AND \"SizeBytes\" IS NULL) OR (\"SourceSeconds\" IS NOT NULL AND \"NormalizedSeconds\" IS NOT NULL AND \"NormalizedSeconds\" >= \"StartSeconds\" - 0.000001 AND \"NormalizedSeconds\" < \"EndSeconds\" AND \"Sha256\" IS NOT NULL AND \"Sha256\" ~ '^[0-9a-f]{64}$' AND \"SizeBytes\" IS NOT NULL AND \"SizeBytes\" BETWEEN 1 AND 4194304)");
         });
     }
 }

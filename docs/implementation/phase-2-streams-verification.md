@@ -69,3 +69,5 @@ Next Phase 2 slice: PySceneDetect scene detection using the selected video via M
 Historical slice evidence. Latest full-suite verification: [Phase 2 scenes](phase-2-scenes-verification.md).
 
 Historical slice evidence. Latest full-suite verification: [Phase 2 audio](phase-2-audio-verification.md).
+
+Historical slice evidence. Latest full-suite verification: [Phase 2 frames](phase-2-frames-verification.md).

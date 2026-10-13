@@ -11,3 +11,5 @@ Publishing must re-check rights and approvals immediately before external action
 
 
 Selected-audio WAV artifacts remain bound to the original import/asset/source and selection. Extraction preserves import-specific source/rights metadata and leaves rights Unreviewed. Authenticated local artifact download is available for analysis; no publication authorization or review/revocation service is implied. See ADR 0009 and ../api/audio-extraction.md.
+
+Scene-frame PNGs inherit the referenced analysis/import/source binding and preserve import-specific rights assertions. Sampling/downloading local inspection artifacts leaves rights Unreviewed and grants no publication permission. No cropping, ownership-mark removal or platform evasion is implemented; only fixed-size fitting/padding is performed. See ADR 0010.

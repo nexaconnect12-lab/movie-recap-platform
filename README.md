@@ -1,7 +1,7 @@
-# AI Movie Recap Automation Platform — Phase 2 media import, discovery, streams, scenes and audio
+# AI Movie Recap Automation Platform — Phase 2 media, scenes, audio and frame artifacts
 A .NET 10 modular monolith foundation with ASP.NET Core API, independently hosted Windows-compatible processing worker, PostgreSQL/EF Core migrations, structured JSON logs, health checks and a persistent job lifecycle.
 
-The worker executes `foundation.database-check`, `media.manual-import`, `media.stream-inspection`, `video.scene-analysis` and `video.audio-extraction`. Manual import records rights/source metadata, validates stable MP4/MKV/MOV/AVI files, hashes SHA-256, deduplicates content, and extracts real FFprobe metadata. Original files remain in place. No AI account or paid service is needed. Implemented and remaining Phase 2 slices are tracked in [the roadmap](docs/implementation/roadmap.md).
+The worker executes `foundation.database-check`, `media.manual-import`, `media.stream-inspection`, `video.scene-analysis`, `video.audio-extraction` and `video.frame-sampling`. Manual import records rights/source metadata, validates stable MP4/MKV/MOV/AVI files, hashes SHA-256, deduplicates content, and extracts real FFprobe metadata. Original files remain in place. No AI account or paid service is needed. Implemented and remaining Phase 2 slices are tracked in [the roadmap](docs/implementation/roadmap.md).
 
 Before importing, configure identical `Media__Folders__library` and `Media__FfprobePath` values in both hosts and apply the additive migrations. See [manual import API/configuration](docs/api/media-imports.md), [manual-import implementation](docs/implementation/phase-2.md) and [manual-import verification](docs/implementation/phase-2-verification.md). Rights are recorded as caller assertions and remain unreviewed; import success grants no publishing permission.
 
@@ -11,7 +11,9 @@ Full FFprobe stream inventories and per-import video/audio/subtitle choices are 
 
 Explicit scene-analysis jobs run real PySceneDetect against the selected video using PyAV. Ordered persisted ranges use actual presentation timestamps, including variable frame rates, and retain source/selection/settings/runtime provenance. Source hashes, cancellation, lease fencing and transactional completion protect results; changed choices leave prior success as history. Configure a pinned Python environment and apply `VideoSceneAnalysis` before restarting hosts. See [scene API/configuration](docs/api/scene-analysis.md) and [implementation](docs/implementation/phase-2-scenes.md).
 
-Selected-audio jobs now use real FFmpeg to create validated 16 kHz mono PCM WAV artifacts. Unique attempt files, reference-aware cleanup, source verification and fenced publication protect retries and completed history. Apply `VideoAudioExtraction`, configure a separate trusted `Audio__Root` on both hosts and `Audio__FfmpegPath` for the worker. See [audio API/configuration](docs/api/audio-extraction.md), [implementation](docs/implementation/phase-2-audio.md) and [latest verification](docs/implementation/phase-2-audio-verification.md). Original media remains read-only. No transcript, thumbnails, AI/TTS, rendering or publishing is implemented.
+Selected-audio jobs now use real FFmpeg to create validated 16 kHz mono PCM WAV artifacts. Unique attempt files, reference-aware cleanup, source verification and fenced publication protect retries and completed history. Apply `VideoAudioExtraction`, configure a separate trusted `Audio__Root` on both hosts and `Audio__FfmpegPath` for the worker. See [audio API/configuration](docs/api/audio-extraction.md), [implementation](docs/implementation/phase-2-audio.md) and [audio verification](docs/implementation/phase-2-audio-verification.md). Original media remains read-only.
+
+Scene thumbnails now use real FFmpeg to sample chosen-video decoded frames from completed scene ranges, retaining actual source/normalized timestamps including VFR and offsets. Fixed 320×180 PNG batches use validated staging, fenced publication, authenticated downloads and cleanup. Apply `VideoFrameSampling`, configure `Frames__Root` on both hosts and `Frames__FfmpegPath` for the worker. See [frame API/configuration](docs/api/scene-frames.md), [implementation](docs/implementation/phase-2-frames.md) and [latest verification](docs/implementation/phase-2-frames-verification.md). No transcript, AI/TTS, recap rendering or publishing is implemented.
 
 ## Local startup (Windows PowerShell 7)
 Prerequisites: .NET 10 SDK and Docker Desktop with Linux containers. Run these commands from this folder:
@@ -52,7 +54,7 @@ Local credentials are generated once, encrypted with Windows DPAPI in ignored `.
 ## Contents
 - `src/Modules/Jobs/{Domain,Application}`: aggregate, validation and persistence port.
 - `src/Modules/Media/{Domain,Application}`: import/assets/rights metadata, inspection and persistence ports.
-- `src/Modules/VideoProcessing/{Domain,Application}`: source-bound scene analyses/ranges, audio extraction/artifacts and execution ports.
+- `src/Modules/VideoProcessing/{Domain,Application}`: source-bound scene analyses/ranges, audio extraction/artifacts, scene frame sampling and execution ports.
 - `src/Infrastructure`: PostgreSQL store, database health and generated migrations.
 - `src/Api`: authenticated local management API with OpenAPI and problem responses.
 - `src/Workers/ProcessingWorker`: bounded single-job executor with heartbeat and recovery.
@@ -66,3 +68,4 @@ See [local development](docs/deployment/local-development.md), [Windows Service 
 This foundation is for local development. Before remote deployment, add user authentication/authorization, TLS, rate limits and operational hardening. No publishing accounts or access tokens are persisted in Phase 1.
 
 # movie-recap-platform
+

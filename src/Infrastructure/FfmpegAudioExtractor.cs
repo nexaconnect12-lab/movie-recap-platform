@@ -33,7 +33,7 @@ public sealed class FfmpegAudioExtractor(IOptions<AudioOptions> options) : IAudi
         catch (OperationCanceledException) when (!ct.IsCancellationRequested) { throw new AudioException("audio-timeout"); }
         catch (IOException) { throw new AudioException("audio-process-io-failed"); }
     }
-    static async Task<string> VersionAsync(AudioOptions settings, CancellationToken ct)
+    internal static async Task<string> VersionAsync(AudioOptions settings, CancellationToken ct)
     {
         using var process = Start(settings.FfmpegPath, ["-version"]); using var cancellation = ct.Register(() => Kill(process));
         var output = ReadBoundedAsync(process.StandardOutput, settings.MaxDiagnosticCharacters, process, ct, true);

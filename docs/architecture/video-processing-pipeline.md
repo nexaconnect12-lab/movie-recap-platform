@@ -1,4 +1,4 @@
-# Video processing pipeline — import, selection, scenes and audio implemented
+# Video processing pipeline — import, selection, scenes, audio and frame artifacts implemented
 Stable authorized input → hash/probe → stream selection/black-bar and overlay analysis → scene detection/thumbnails/audio → edit timeline → FFmpeg render → probe/validate final output. Preserve the original file. Do not process files still being copied. Python/PySceneDetect is a bounded subprocess adapter, not embedded domain logic.
 
 Invoke tools without shell interpolation, constrain paths/resources, stream progress, terminate process trees on cancellation, retain stderr safely and record tool/version provenance. Removable selectable subtitles and authorized overlay edits are distinct from ownership-watermark concealment, which is prohibited.
@@ -15,3 +15,6 @@ The confirmed scene slice adds VideoProcessing-owned analysis/history/ranges and
 
 
 Selected-audio extraction now executes real FFmpeg against Media's explicitly chosen global audio index. Original source is held read-only and hashed twice; bounded raw PCM becomes validated 16 kHz mono 16-bit WAV. Attempt files promote without overwrite under lease/selection fences; database reference/job/audit commit atomically, and only committed references can be downloaded. Crash/rollback orphans are reference-aware cleanup targets; completed artifacts/history remain. See ADR 0009 and ../api/audio-extraction.md. Earlier descriptions are historical. Thumbnail/subtitle/black-bar/overlay/semantic processing and rendering remain future.
+
+Scene frame artifacts now execute real FFmpeg sequential chosen-stream decode without approximate seeks/FPS timing guesses. Quantile frame ordinals come from completed scenes; original integer PTS/timebase yields source seconds, and the analysis offset yields normalized seconds. Validate both mapping and scene membership. PNGs fit encoded frames at 320×180 without cropping (black padding/square pixels/no auto rotation), with full CRC/pixel/header/hash validation. Batch staging/promotion/reference-aware cleanup reuses audio's fencing pattern and shared path guard. See ADR 0010 and ../api/scene-frames.md. Earlier slice exclusions are historical; black-bar/overlay/semantic analysis, subtitles and recap rendering remain future.
+

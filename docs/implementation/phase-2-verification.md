@@ -65,3 +65,5 @@ Next scoped work: remaining Phase 2 folder monitoring, fuller stream handling/pr
 Historical slice evidence. Latest full-suite verification: [Phase 2 scenes](phase-2-scenes-verification.md).
 
 Historical slice evidence. Latest full-suite verification: [Phase 2 audio](phase-2-audio-verification.md).
+
+Historical slice evidence. Latest full-suite verification: [Phase 2 frames](phase-2-frames-verification.md).

@@ -27,7 +27,7 @@ var app = builder.Build();
 app.UseExceptionHandler(error => error.Run(async context =>
 {
     var ex = context.Features.Get<IExceptionHandlerFeature>()!.Error;
-    var status = ex switch { BadHttpRequestException requestError => requestError.StatusCode, System.Text.Json.JsonException or ValidationException or ImportException or SceneException or AudioException => 400, JobConflictException or ImportConflictException or DbUpdateConcurrencyException => 409, _ => 500 };
+    var status = ex switch { BadHttpRequestException requestError => requestError.StatusCode, System.Text.Json.JsonException or ValidationException or ImportException or SceneException or AudioException or FrameException => 400, JobConflictException or ImportConflictException or DbUpdateConcurrencyException => 409, _ => 500 };
     if (status == 500) app.Logger.LogError(ex, "Request failed {TraceId}", context.TraceIdentifier);
     await Results.Problem(statusCode: status, title: status == 500 ? "Internal server error" : ex is BadHttpRequestException or System.Text.Json.JsonException ? "Invalid request body" : ex.Message,
         extensions: ex is ValidationException v ? new Dictionary<string, object?> { ["errors"] = v.Errors.Select(e => new { e.PropertyName, e.ErrorMessage }) } : null).ExecuteAsync(context);
@@ -52,6 +52,20 @@ imports.MapPost("/{id:guid}/audio-extractions", async (Guid id, RequestAudio req
 imports.MapGet("/{id:guid}/audio-extractions", async (Guid id, int? limit, IStreamStore media, IAudioStore store, CancellationToken ct) =>
     await media.GetAsync(id, ct) is null ? Results.NotFound() : Results.Ok(await store.ListAsync(id, limit ?? 50, ct)));
 var audio = app.MapGroup("/api/video/audio-extractions").WithTags("Audio extraction");
+var frames = app.MapGroup("/api/video/frame-samplings").WithTags("Scene frames");
+app.MapPost("/api/video/scene-analyses/{id:guid}/frame-samplings", async (Guid id, RequestFrames request, FrameService service, CancellationToken ct) =>
+{
+    var result = await service.CreateAsync(id, request, ct); return result is null ? Results.NotFound() : Results.Created($"/api/video/frame-samplings/{result.Sampling.Id}", result);
+});
+app.MapGet("/api/video/scene-analyses/{id:guid}/frame-samplings", async (Guid id, int? limit, ISceneStore scenes, IFrameStore store, CancellationToken ct) =>
+    await scenes.GetAsync(id, ct) is null ? Results.NotFound() : Results.Ok(await store.ListAsync(id, limit ?? 50, ct)));
+frames.MapGet("/{id:guid}", async (Guid id, IFrameStore store, CancellationToken ct) => await store.GetAsync(id, ct) is { } result ? Results.Ok(result) : Results.NotFound());
+frames.MapGet("/{id:guid}/samples/{ordinal:int}", async (Guid id, int ordinal, FrameService service, CancellationToken ct) =>
+{
+    var stream = await service.DownloadAsync(id, ordinal, ct); return stream is null ? Results.NotFound() : Results.Stream(stream, "image/png", id.ToString("N") + "-" + ordinal + ".png");
+});
+frames.MapPost("/{id:guid}/cleanup", async (Guid id, IFrameStore store, CancellationToken ct) =>
+    await store.GetAsync(id, ct) is null ? Results.NotFound() : Results.Ok(new { removedFiles = await store.CleanupAsync(id, ct) }));
 audio.MapGet("/{id:guid}", async (Guid id, IAudioStore store, CancellationToken ct) => await store.GetAsync(id, ct) is { } result ? Results.Ok(result) : Results.NotFound());
 audio.MapGet("/{id:guid}/artifact", async (Guid id, AudioService service, CancellationToken ct) =>
 {
@@ -132,4 +146,5 @@ foreach (var command in Enum.GetValues<JobCommand>())
 await app.RunAsync();
 public sealed record VersionRequest(Guid Version);
 public partial class Program { }
+
 

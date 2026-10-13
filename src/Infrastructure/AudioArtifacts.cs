@@ -36,37 +36,9 @@ public static class PcmWave
 public sealed class LocalAudioArtifacts(IOptions<AudioOptions> options, IOptions<MediaOptions> media) : IAudioArtifacts
 {
     readonly AudioOptions settings = options.Value;
-    string DirectoryFor(Guid id, bool create = false)
-    {
-        if (id == Guid.Empty || settings.Root is null) throw new AudioException("audio-artifact-root-not-configured");
-        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(settings.Root));
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        foreach (var folder in media.Value.Folders.Values)
-        {
-            var source = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
-            var sourcePrefix = Path.EndsInDirectorySeparator(source) ? source : source + Path.DirectorySeparatorChar;
-            var rootPrefix = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;
-            if (root.Equals(source, comparison) || root.StartsWith(sourcePrefix, comparison) || source.StartsWith(rootPrefix, comparison))
-                throw new AudioException("audio-artifact-root-overlaps-media");
-        }
-        var directory = Path.Combine(root, "audio-v1", id.ToString("N")); CheckLinks(directory);
-        var owner = Path.Combine(directory, ".owner"); var expected = "platform-audio-v1:" + id.ToString("N");
-        if (!Directory.Exists(directory))
-        {
-            if (!create) return directory;
-            Directory.CreateDirectory(directory);
-            try { using var marker = new FileStream(owner, FileMode.CreateNew, FileAccess.Write, FileShare.None); marker.Write(System.Text.Encoding.ASCII.GetBytes(expected)); marker.Flush(true); }
-            catch (IOException) { /* Concurrent initialization must match the owner marker below. */ }
-        }
-        CheckLinks(owner);
-        if (!File.Exists(owner) || new FileInfo(owner).Length > 128 || File.ReadAllText(owner) != expected) throw new AudioException("audio-artifact-directory-not-owned");
-        return directory;
-    }
-    static void CheckLinks(string path)
-    {
-        for (var current = path; current is not null; current = Path.GetDirectoryName(current))
-            if ((File.Exists(current) || Directory.Exists(current)) && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) throw new AudioException("audio-unsafe-artifact-link");
-    }
+    static Exception PathError(string suffix) => new AudioException("audio-" + suffix);
+    string DirectoryFor(Guid id, bool create = false) => ManagedArtifactPaths.Resolve(settings.Root, media.Value.Folders.Values, "audio-v1", id, create, PathError);
+    static void CheckLinks(string path) => ManagedArtifactPaths.CheckLinks(path, PathError);
     public Task<IAudioAttempt> BeginAsync(Guid extractionId, Guid token, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested(); if (token == Guid.Empty) throw new AudioException("audio-invalid-attempt");
@@ -143,3 +115,4 @@ public sealed class LocalAudioArtifacts(IOptions<AudioOptions> options, IOptions
         public async ValueTask DisposeAsync() { await output.DisposeAsync(); await gate.DisposeAsync(); }
     }
 }
+

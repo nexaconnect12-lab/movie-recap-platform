@@ -55,3 +55,5 @@ Limitations: full decoding and two source hash passes are expensive; progress is
 Next proposed Phase 2 task: source-preserving selected-audio extraction with managed artifact promotion/cleanup and fenced execution, subject to separate scope confirmation. Audio/subtitle extraction, thumbnails, preprocessing, AI, Burmese TTS, rendering, dashboard and publishing are absent from this implementation.
 
 Historical slice evidence. Latest full-suite verification: [Phase 2 audio](phase-2-audio-verification.md).
+
+Historical slice evidence. Latest full-suite verification: [Phase 2 frames](phase-2-frames-verification.md).

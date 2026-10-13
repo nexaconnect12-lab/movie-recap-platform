@@ -45,7 +45,7 @@ public sealed class MediaImportTests
         await using (var db = await f.Factory.CreateDbContextAsync())
         {
             await db.Database.MigrateAsync(); await db.Database.MigrateAsync();
-            Assert.Equal(7, (await db.Database.GetAppliedMigrationsAsync()).Count());
+            Assert.Equal(8, (await db.Database.GetAppliedMigrationsAsync()).Count());
         }
         Assert.Equal(persistedBeforeUpgrade, await f.Store.GetAsync(job.Id, default)); Assert.Single(await f.Store.AuditAsync(job.Id, default));
         var result = await Store(f).CreateAsync(Request("after-upgrade"), default); Assert.Equal(Rights, result.Rights);
@@ -217,4 +217,5 @@ public sealed class MediaImportTests
         public void Dispose() => Directory.Delete(Path, recursive: true);
     }
 }
+
 

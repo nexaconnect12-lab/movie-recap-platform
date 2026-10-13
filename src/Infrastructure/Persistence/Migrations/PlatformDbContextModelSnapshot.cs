@@ -571,6 +571,113 @@ namespace MovieRecap.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.FrameSample", b =>
+                {
+                    b.Property<Guid>("SamplingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("EndSeconds")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("FrameIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("NormalizedSeconds")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("SceneOrdinal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Sha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<double?>("SourceSeconds")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("StartSeconds")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("SamplingId", "Ordinal");
+
+                    b.ToTable("FrameSamples", "video", t =>
+                        {
+                            t.HasCheckConstraint("CK_Sample_Plan", "\"Ordinal\" BETWEEN 0 AND 299 AND \"SceneOrdinal\" >= 0 AND \"FrameIndex\" >= 0 AND \"StartSeconds\" >= 0 AND \"EndSeconds\" > \"StartSeconds\"");
+
+                            t.HasCheckConstraint("CK_Sample_Result", "(\"SourceSeconds\" IS NULL AND \"NormalizedSeconds\" IS NULL AND \"Sha256\" IS NULL AND \"SizeBytes\" IS NULL) OR (\"SourceSeconds\" IS NOT NULL AND \"NormalizedSeconds\" IS NOT NULL AND \"NormalizedSeconds\" >= \"StartSeconds\" - 0.000001 AND \"NormalizedSeconds\" < \"EndSeconds\" AND \"Sha256\" IS NOT NULL AND \"Sha256\" ~ '^[0-9a-f]{64}$' AND \"SizeBytes\" IS NOT NULL AND \"SizeBytes\" BETWEEN 1 AND 4194304)");
+                        });
+                });
+
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.FrameSampling", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ArtifactToken")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FfmpegVersion")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("MaxAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Profile")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("SamplesPerScene")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SceneAnalysisId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId")
+                        .IsUnique();
+
+                    b.HasIndex("SceneAnalysisId", "CreatedAt");
+
+                    b.HasIndex("SceneAnalysisId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.ToTable("FrameSamplings", "video", t =>
+                        {
+                            t.HasCheckConstraint("CK_Sampling_Completion", "(\"CompletedAt\" IS NULL AND \"ArtifactToken\" IS NULL AND \"FfmpegVersion\" IS NULL) OR (\"CompletedAt\" IS NOT NULL AND \"ArtifactToken\" IS NOT NULL AND \"FfmpegVersion\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Sampling_Settings", "\"SamplesPerScene\" BETWEEN 1 AND 3 AND \"MaxAttempts\" BETWEEN 1 AND 5 AND \"Profile\" = 'png-rgb24-320x180-frame-quantiles-v1'");
+                        });
+                });
+
             modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.MovieScene", b =>
                 {
                     b.Property<Guid>("AnalysisId")
@@ -960,6 +1067,24 @@ namespace MovieRecap.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("AssetId", "InventoryVersion")
                         .HasPrincipalKey("AssetId", "Version")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.FrameSample", b =>
+                {
+                    b.HasOne("MovieRecap.VideoProcessing.Domain.FrameSampling", null)
+                        .WithMany()
+                        .HasForeignKey("SamplingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.FrameSampling", b =>
+                {
+                    b.HasOne("MovieRecap.VideoProcessing.Domain.SceneAnalysis", null)
+                        .WithMany()
+                        .HasForeignKey("SceneAnalysisId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
