@@ -20,6 +20,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<SelectionAuditRecord> SelectionAudits => Set<SelectionAuditRecord>();
     public DbSet<SceneAnalysis> SceneAnalyses => Set<SceneAnalysis>();
     public DbSet<MovieScene> MovieScenes => Set<MovieScene>();
+    public DbSet<SubtitleExtraction> SubtitleExtractions => Set<SubtitleExtraction>();
+    public DbSet<SubtitleCue> SubtitleCues => Set<SubtitleCue>();
     public DbSet<AudioExtraction> AudioExtractions => Set<AudioExtraction>();
     public DbSet<FrameSampling> FrameSamplings => Set<FrameSampling>();
     public DbSet<FrameSample> FrameSamples => Set<FrameSample>();
@@ -122,6 +124,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         var scene = model.Entity<MovieScene>(); scene.ToTable("MovieScenes", "video"); scene.HasKey(x => new { x.AnalysisId, x.Ordinal });
         scene.HasOne<SceneAnalysis>().WithMany().HasForeignKey(x => x.AnalysisId).OnDelete(DeleteBehavior.Restrict);
         scene.ToTable(t => t.HasCheckConstraint("CK_Scene_Range", "\"Ordinal\" >= 0 AND \"StartFrame\" >= 0 AND \"EndFrame\" > \"StartFrame\" AND \"StartSeconds\" >= 0 AND \"EndSeconds\" > \"StartSeconds\""));
+        var subtitle = model.Entity<SubtitleExtraction>(); subtitle.ToTable("SubtitleExtractions", "video"); subtitle.HasKey(x => x.Id);
+        subtitle.Property(x => x.SourceSha256).HasMaxLength(64); subtitle.Property(x => x.ArtifactSha256).HasMaxLength(64); subtitle.Property(x => x.FfmpegVersion).HasMaxLength(256);
+        subtitle.Property(x => x.IdempotencyKey).HasMaxLength(128); subtitle.Property(x => x.RequestedBy).HasMaxLength(256); subtitle.Property(x => x.Profile).HasMaxLength(64);
+        subtitle.HasIndex(x => new { x.ImportId, x.IdempotencyKey }).IsUnique(); subtitle.HasIndex(x => x.JobId).IsUnique(); subtitle.HasIndex(x => new { x.ImportId, x.CreatedAt });
+        subtitle.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_Subtitle_Binding", "\"SubtitleIndex\" >= 0 AND \"SourceSizeBytes\" > 0 AND \"SourceSha256\" ~ '^[0-9a-f]{64}$' AND \"MaxAttempts\" BETWEEN 1 AND 5 AND \"Profile\" = 'srt-utf8-source-timestamps-v1'");
+            t.HasCheckConstraint("CK_Subtitle_Completion", "(\"CompletedAt\" IS NULL AND \"ArtifactToken\" IS NULL AND \"ArtifactSha256\" IS NULL AND \"ArtifactSizeBytes\" IS NULL AND \"CueCount\" IS NULL AND \"FfmpegVersion\" IS NULL) OR (\"CompletedAt\" IS NOT NULL AND \"ArtifactToken\" IS NOT NULL AND \"ArtifactSha256\" IS NOT NULL AND \"ArtifactSha256\" ~ '^[0-9a-f]{64}$' AND \"CueCount\" IS NOT NULL AND \"CueCount\" BETWEEN 1 AND 100000 AND \"ArtifactSizeBytes\" BETWEEN 1 AND 16777216 AND \"ArtifactSizeBytes\" IS NOT NULL AND \"FfmpegVersion\" IS NOT NULL)");
+        });
+        var cue = model.Entity<SubtitleCue>(); cue.ToTable("SubtitleCues", "video"); cue.HasKey(x => new { x.ExtractionId, x.Ordinal }); cue.Ignore(x => x.Data); cue.Property(x => x.Text).HasMaxLength(4096);
+        cue.HasOne<SubtitleExtraction>().WithMany().HasForeignKey(x => x.ExtractionId).OnDelete(DeleteBehavior.Restrict);
+        cue.ToTable(t => t.HasCheckConstraint("CK_Subtitle_Cue", "\"Ordinal\" BETWEEN 0 AND 99999 AND \"StartMilliseconds\" >= 0 AND \"EndMilliseconds\" > \"StartMilliseconds\" AND \"EndMilliseconds\" < 360000000 AND length(\"Text\") BETWEEN 1 AND 4096"));
         var audio = model.Entity<AudioExtraction>(); audio.ToTable("AudioExtractions", "video"); audio.HasKey(x => x.Id); audio.Ignore(x => x.DurationSeconds);
         audio.Property(x => x.SourceSha256).HasMaxLength(64); audio.Property(x => x.ArtifactSha256).HasMaxLength(64); audio.Property(x => x.FfmpegVersion).HasMaxLength(256);
         audio.Property(x => x.IdempotencyKey).HasMaxLength(128); audio.Property(x => x.RequestedBy).HasMaxLength(256); audio.Property(x => x.Profile).HasMaxLength(64);
@@ -159,7 +173,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         var validation = model.Entity<PreparationValidation>(); validation.ToTable("PreparationValidations", "video"); validation.HasKey(x => x.Id); validation.Property(x => x.IdempotencyKey).HasMaxLength(128); validation.Property(x => x.RequestedBy).HasMaxLength(256); validation.Property(x => x.SnapshotHash).HasMaxLength(64); validation.Property(x => x.IssuesJson).HasMaxLength(65536);
         validation.HasIndex(x => new { x.ImportId, x.IdempotencyKey }).IsUnique(); validation.HasIndex(x => x.JobId).IsUnique(); validation.HasIndex(x => new { x.ImportId, x.CreatedAt });
         validation.HasOne<PreparationReview>().WithMany().HasForeignKey(x => x.ImportId).OnDelete(DeleteBehavior.Restrict);
-        validation.OwnsOne(x => x.Binding, b => { b.Ignore(x => x.Hash); b.Ignore(x => x.IsReady); b.Property(x => x.SourceSha256).HasMaxLength(64); }); validation.Navigation(x => x.Binding).IsRequired();
+        validation.OwnsOne(x => x.Binding, b => { b.Ignore(x => x.Hash); b.Ignore(x => x.IsReady); b.Property(x => x.SourceSha256).HasMaxLength(64); b.Property(x => x.SchemaVersion).HasDefaultValue(1); }); validation.Navigation(x => x.Binding).IsRequired();
         validation.ToTable(t =>
         {
             t.HasCheckConstraint("CK_Validation_Binding", "\"SnapshotHash\" ~ '^[0-9a-f]{64}$' AND \"MaxAttempts\" BETWEEN 1 AND 5");
@@ -168,7 +182,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         var preparationAudit = model.Entity<PreparationAudit>(); preparationAudit.ToTable("PreparationAudits", "video"); preparationAudit.HasKey(x => x.Id); preparationAudit.Property(x => x.Sequence).UseIdentityAlwaysColumn(); preparationAudit.HasIndex(x => x.Sequence).IsUnique(); preparationAudit.HasIndex(x => new { x.ImportId, x.Sequence });
         preparationAudit.Property(x => x.Action).HasMaxLength(32); preparationAudit.Property(x => x.SnapshotHash).HasMaxLength(64); preparationAudit.Property(x => x.RequestedBy).HasMaxLength(256); preparationAudit.Property(x => x.Notes).HasMaxLength(2048);
         preparationAudit.HasOne<PreparationReview>().WithMany().HasForeignKey(x => x.ImportId).OnDelete(DeleteBehavior.Restrict); preparationAudit.HasOne<PreparationValidation>().WithMany().HasForeignKey(x => x.ValidationId).OnDelete(DeleteBehavior.Restrict);
-        preparationAudit.OwnsOne(x => x.Binding, b => { b.Ignore(x => x.Hash); b.Ignore(x => x.IsReady); b.Property(x => x.SourceSha256).HasMaxLength(64); }); preparationAudit.Navigation(x => x.Binding).IsRequired();
+        preparationAudit.OwnsOne(x => x.Binding, b => { b.Ignore(x => x.Hash); b.Ignore(x => x.IsReady); b.Property(x => x.SourceSha256).HasMaxLength(64); b.Property(x => x.SchemaVersion).HasDefaultValue(1); }); preparationAudit.Navigation(x => x.Binding).IsRequired();
     }
 }
 public sealed class DesignFactory : IDesignTimeDbContextFactory<PlatformDbContext>

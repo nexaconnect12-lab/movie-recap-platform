@@ -61,7 +61,7 @@ public sealed class PreparationTests
         var v = Validation(Binding(), false); Assert.False(v.Passed); Assert.Contains("audio-artifact-unavailable", v.IssuesJson!);
         Assert.Throws<InvalidOperationException>(() => v.Complete([], DateTimeOffset.UtcNow));
         var binding = Binding(); var other = PreparationValidation.Create(binding.ImportId, Guid.NewGuid(), "key", "actor", 1, binding, DateTimeOffset.UtcNow);
-        Assert.Throws<ArgumentException>(() => other.Complete(Enumerable.Range(0, 303).Select(i => new PreparationIssue("frame-" + i, "frame-artifact-unavailable")).ToArray(), DateTimeOffset.UtcNow));
+        Assert.Throws<ArgumentException>(() => other.Complete(Enumerable.Range(0, 304).Select(i => new PreparationIssue("frame-" + i, "frame-artifact-unavailable")).ToArray(), DateTimeOffset.UtcNow));
     }
     [Fact]
     public void Generic_job_creation_cannot_impersonate_preparation_validation()

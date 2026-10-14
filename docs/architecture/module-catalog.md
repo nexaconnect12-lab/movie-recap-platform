@@ -23,3 +23,6 @@ VideoProcessing now also owns FrameSamplings/FrameSamples and the actual scene-q
 
 
 VideoProcessing now also owns PreparationReviews/PreparationValidations/PreparationAudits and technical preparation checks/review. Current application table count is 19 across jobs/media/video, plus EF migration history. Rights approval/revocation and later-phase module entities remain deferred.
+
+
+VideoProcessing additionally owns SubtitleExtractions/SubtitleCues and canonical SRT artifacts. Latest source model has 21 application tables plus EF history; the activated local database remains at the previously deployed 19 tables until separate subtitle activation. Media owns selected-subtitle source access and choice locks; Video uses those Application contracts. No transcription/localization/rendering/publishing tables are added.

@@ -1001,6 +1001,124 @@ namespace MovieRecap.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.SubtitleCue", b =>
+                {
+                    b.Property<Guid>("ExtractionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("EndMilliseconds")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("StartMilliseconds")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)");
+
+                    b.HasKey("ExtractionId", "Ordinal");
+
+                    b.ToTable("SubtitleCues", "video", t =>
+                        {
+                            t.HasCheckConstraint("CK_Subtitle_Cue", "\"Ordinal\" BETWEEN 0 AND 99999 AND \"StartMilliseconds\" >= 0 AND \"EndMilliseconds\" > \"StartMilliseconds\" AND \"EndMilliseconds\" < 360000000 AND length(\"Text\") BETWEEN 1 AND 4096");
+                        });
+                });
+
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.SubtitleExtraction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ArtifactSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long?>("ArtifactSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("ArtifactToken")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CueCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FfmpegVersion")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("ImportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("InventoryVersion")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("JobId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("MaxAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Profile")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("SelectionVersion")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("SourceSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("SubtitleIndex")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId")
+                        .IsUnique();
+
+                    b.HasIndex("ImportId", "CreatedAt");
+
+                    b.HasIndex("ImportId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.ToTable("SubtitleExtractions", "video", t =>
+                        {
+                            t.HasCheckConstraint("CK_Subtitle_Binding", "\"SubtitleIndex\" >= 0 AND \"SourceSizeBytes\" > 0 AND \"SourceSha256\" ~ '^[0-9a-f]{64}$' AND \"MaxAttempts\" BETWEEN 1 AND 5 AND \"Profile\" = 'srt-utf8-source-timestamps-v1'");
+
+                            t.HasCheckConstraint("CK_Subtitle_Completion", "(\"CompletedAt\" IS NULL AND \"ArtifactToken\" IS NULL AND \"ArtifactSha256\" IS NULL AND \"ArtifactSizeBytes\" IS NULL AND \"CueCount\" IS NULL AND \"FfmpegVersion\" IS NULL) OR (\"CompletedAt\" IS NOT NULL AND \"ArtifactToken\" IS NOT NULL AND \"ArtifactSha256\" IS NOT NULL AND \"ArtifactSha256\" ~ '^[0-9a-f]{64}$' AND \"CueCount\" IS NOT NULL AND \"CueCount\" BETWEEN 1 AND 100000 AND \"ArtifactSizeBytes\" BETWEEN 1 AND 16777216 AND \"ArtifactSizeBytes\" IS NOT NULL AND \"FfmpegVersion\" IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("MovieRecap.Infrastructure.ImportRightsRecord", b =>
                 {
                     b.HasOne("MovieRecap.Media.Domain.MovieImport", null)
@@ -1319,6 +1437,11 @@ namespace MovieRecap.Infrastructure.Persistence.Migrations
                             b1.Property<Guid?>("SceneId")
                                 .HasColumnType("uuid");
 
+                            b1.Property<int>("SchemaVersion")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasDefaultValue(1);
+
                             b1.Property<Guid?>("SelectionVersion")
                                 .HasColumnType("uuid");
 
@@ -1328,6 +1451,9 @@ namespace MovieRecap.Infrastructure.Persistence.Migrations
 
                             b1.Property<long?>("SourceSizeBytes")
                                 .HasColumnType("bigint");
+
+                            b1.Property<Guid?>("SubtitleId")
+                                .HasColumnType("uuid");
 
                             b1.Property<int?>("SubtitleIndex")
                                 .HasColumnType("integer");
@@ -1394,6 +1520,11 @@ namespace MovieRecap.Infrastructure.Persistence.Migrations
                             b1.Property<Guid?>("SceneId")
                                 .HasColumnType("uuid");
 
+                            b1.Property<int>("SchemaVersion")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasDefaultValue(1);
+
                             b1.Property<Guid?>("SelectionVersion")
                                 .HasColumnType("uuid");
 
@@ -1403,6 +1534,9 @@ namespace MovieRecap.Infrastructure.Persistence.Migrations
 
                             b1.Property<long?>("SourceSizeBytes")
                                 .HasColumnType("bigint");
+
+                            b1.Property<Guid?>("SubtitleId")
+                                .HasColumnType("uuid");
 
                             b1.Property<int?>("SubtitleIndex")
                                 .HasColumnType("integer");
@@ -1419,6 +1553,15 @@ namespace MovieRecap.Infrastructure.Persistence.Migrations
                         });
 
                     b.Navigation("Binding")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MovieRecap.VideoProcessing.Domain.SubtitleCue", b =>
+                {
+                    b.HasOne("MovieRecap.VideoProcessing.Domain.SubtitleExtraction", null)
+                        .WithMany()
+                        .HasForeignKey("ExtractionId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 #pragma warning restore 612, 618

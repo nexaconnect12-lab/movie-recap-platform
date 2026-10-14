@@ -1,5 +1,7 @@
 # Phase 2 preparation view, validation and operator review
 
+The selected-subtitle slice extends this API after `VideoSubtitleExtraction` activation. Snapshots include current SubRip extraction/cues; a selected subtitle requires that artifact, while explicit no-subtitle remains valid. Real SRT checks join validation/fresh approval, new subtitle output stales decisions, and history includes extraction jobs. Binding schema version 2 records subtitle identity; historical version-1 fingerprints and no-subtitle compatibility are preserved. See [subtitle API/configuration](subtitle-extraction.md). Earlier artifact lists below describe the original preparation slice.
+
 Apply additive `VideoPreparationReview`, rebuild/restart both hosts and keep identical trusted Media roots and Audio/Frames artifact roots. Validation uses the existing source/WAV/PNG verifiers. No extra provider, Python package or external tool is added; generating the artifacts still needs the previously configured real tools. Hosts never migrate automatically.
 
 `Preparation__CheckTimeoutSeconds` defaults to 3600, allowed 1–86400. It bounds filesystem verification for worker checks and fresh approval checks. Worker lease heartbeat/cancellation/attempt budgets remain unchanged. All endpoints require `X-Api-Key`; requester identities are assertions under existing shared-key access, not authenticated individual users.

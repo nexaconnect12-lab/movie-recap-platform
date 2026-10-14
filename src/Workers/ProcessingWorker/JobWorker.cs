@@ -10,7 +10,7 @@ using MovieRecap.VideoProcessing.Application;
 namespace MovieRecap.Worker;
 
 public sealed class WorkerOptions { public int PollSeconds { get; set; } = 2; public int LeaseSeconds { get; set; } = 60; }
-public sealed class JobWorker(IJobStore store, IDbContextFactory<PlatformDbContext> factory, ImportExecutor imports, StreamInspectionExecutor inspections, SceneExecutor scenes, AudioExecutor audio, FrameExecutor frames, PreparationExecutor preparations, IOptions<WorkerOptions> options, ILogger<JobWorker> log) : BackgroundService
+public sealed class JobWorker(IJobStore store, IDbContextFactory<PlatformDbContext> factory, ImportExecutor imports, StreamInspectionExecutor inspections, SceneExecutor scenes, AudioExecutor audio, FrameExecutor frames, PreparationExecutor preparations, SubtitleExecutor subtitles, IOptions<WorkerOptions> options, ILogger<JobWorker> log) : BackgroundService
 {
     readonly string workerId = Environment.MachineName + ":" + Guid.NewGuid().ToString("N");
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -41,6 +41,7 @@ public sealed class JobWorker(IJobStore store, IDbContextFactory<PlatformDbConte
             if (job.Kind == "media.manual-import") await imports.ExecuteAsync(job, execution.Token, value => Volatile.Write(ref progress, value));
             else if (job.Kind == "media.stream-inspection") await inspections.ExecuteAsync(job, execution.Token, value => Volatile.Write(ref progress, value));
             else if (job.Kind == "video.scene-analysis") await scenes.ExecuteAsync(job, execution.Token, value => Volatile.Write(ref progress, value));
+            else if (job.Kind == "video.subtitle-extraction") await subtitles.ExecuteAsync(job, execution.Token, value => Volatile.Write(ref progress, value));
             else if (job.Kind == "video.audio-extraction") await audio.ExecuteAsync(job, execution.Token, value => Volatile.Write(ref progress, value));
             else if (job.Kind == "video.frame-sampling") await frames.ExecuteAsync(job, execution.Token, value => Volatile.Write(ref progress, value));
             else if (job.Kind == "video.preparation-validation") await preparations.ExecuteAsync(job, execution.Token, value => Volatile.Write(ref progress, value));
@@ -60,7 +61,7 @@ public sealed class JobWorker(IJobStore store, IDbContextFactory<PlatformDbConte
         }
         catch (Exception ex)
         {
-            var error = ex is PreparationException preparationError ? preparationError.Code : ex is FrameException frameError ? frameError.Code : ex is AudioException audioError ? audioError.Code : ex is SceneException sceneError ? sceneError.Code : ex is ImportException importError ? importError.Code : job.Kind == "media.manual-import" ? "media-import-failed" : job.Kind == "media.stream-inspection" ? "stream-inspection-failed" : job.Kind == "video.scene-analysis" ? "scene-analysis-failed" : job.Kind == "video.audio-extraction" ? "audio-extraction-failed" : job.Kind == "video.frame-sampling" ? "frame-sampling-failed" : job.Kind == "video.preparation-validation" ? "preparation-validation-failed" : "database-check-failed";
+            var error = ex is SubtitleException subtitleError ? subtitleError.Code : ex is PreparationException preparationError ? preparationError.Code : ex is FrameException frameError ? frameError.Code : ex is AudioException audioError ? audioError.Code : ex is SceneException sceneError ? sceneError.Code : ex is ImportException importError ? importError.Code : job.Kind == "media.manual-import" ? "media-import-failed" : job.Kind == "media.stream-inspection" ? "stream-inspection-failed" : job.Kind == "video.scene-analysis" ? "scene-analysis-failed" : job.Kind == "video.subtitle-extraction" ? "subtitle-extraction-failed" : job.Kind == "video.audio-extraction" ? "audio-extraction-failed" : job.Kind == "video.frame-sampling" ? "frame-sampling-failed" : job.Kind == "video.preparation-validation" ? "preparation-validation-failed" : "database-check-failed";
             // FFprobe/provider output and user-supplied media metadata never enter logs.
             log.LogError("Job {JobId} failed with {ErrorCode}", job.JobId, error);
             try { await store.FailAsync(job, error, stop); }

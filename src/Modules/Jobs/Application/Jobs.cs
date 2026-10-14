@@ -9,7 +9,7 @@ public sealed class CreateJobValidator : AbstractValidator<CreateJob>
     {
         RuleFor(x => x.Kind).Equal("foundation.database-check");
         RuleFor(x => x.IdempotencyKey).NotEmpty().MaximumLength(128).Matches(@"^[A-Za-z0-9._:-]+$");
-        RuleFor(x => x.IdempotencyKey).Must(x => x is null || !(x.StartsWith("media-import:", StringComparison.Ordinal) || x.StartsWith("stream-inspection:", StringComparison.Ordinal) || x.StartsWith("scene-analysis:", StringComparison.Ordinal) || x.StartsWith("audio-extraction:", StringComparison.Ordinal) || x.StartsWith("frame-sampling:", StringComparison.Ordinal) || x.StartsWith("preparation-validation:", StringComparison.Ordinal))).WithMessage("Module job key namespaces are reserved for their coordinators.");
+        RuleFor(x => x.IdempotencyKey).Must(x => x is null || !(x.StartsWith("media-import:", StringComparison.Ordinal) || x.StartsWith("stream-inspection:", StringComparison.Ordinal) || x.StartsWith("scene-analysis:", StringComparison.Ordinal) || x.StartsWith("subtitle-extraction:", StringComparison.Ordinal) || x.StartsWith("audio-extraction:", StringComparison.Ordinal) || x.StartsWith("frame-sampling:", StringComparison.Ordinal) || x.StartsWith("preparation-validation:", StringComparison.Ordinal))).WithMessage("Module job key namespaces are reserved for their coordinators.");
         RuleFor(x => x.MaxAttempts).InclusiveBetween(1, 5);
     }
 }

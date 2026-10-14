@@ -20,12 +20,12 @@ public sealed class PreparationTests
     static PreparationExecutor Executor(DatabaseFixture f, Folder folder) => new(Store(f), folder.Media(f), folder.Checker(f));
     static RequestPreparationValidation Request(PreparationOverview view, string key = "validate") => new(key, view.Snapshot.SnapshotHash, "operator", 3);
     static DecidePreparation Decision(PreparationOverview view, PreparationStatus status = PreparationStatus.Approved) => new(view.Review?.Version ?? Guid.Empty, view.Snapshot.SnapshotHash, status, "operator", "Reviewed preparation");
-    static async Task<Guid> Prepare(DatabaseFixture f, Folder folder, bool audio = true, bool artifacts = true)
+    static async Task<Guid> Prepare(DatabaseFixture f, Folder folder, bool audio = true, bool artifacts = true, bool subtitle = false)
     {
         var imports = new PostgresImportStore(f.Factory, f.Clock); var created = await new ImportService(imports, folder.Inspector).CreateAsync(new("owned", "library", "movie.mkv", "Owned source", "operator", Rights, 1), default);
         var lease = (await f.Store.ClaimAsync("worker", TimeSpan.FromSeconds(30), default))!; await new ImportExecutor(imports, folder.Inspector).ExecuteAsync(lease, default);
         var streams = new PostgresStreamStore(f.Factory, f.Clock); var view = (await streams.GetAsync(created.Import.Id, default))!;
-        await new StreamService(streams, folder.Verifier).SelectAsync(created.Import.Id, new(view.Selection!.Version, 1, audio ? 3 : null, null, "operator"), default);
+        await new StreamService(streams, folder.Verifier).SelectAsync(created.Import.Id, new(view.Selection!.Version, 1, audio ? 3 : null, subtitle ? 5 : null, "operator"), default);
         if (!artifacts) return created.Import.Id;
         var video = new SelectedVideoAccess(streams, folder.Verifier); var source = (await video.GetAsync(created.Import.Id, default))!; var scenes = new PostgresSceneStore(f.Factory, video, f.Clock);
         var scene = (await new SceneService(scenes, video).CreateAsync(source.ImportId, new("scenes", source.SelectionVersion, "operator", 27, 2, 1), default))!;
@@ -171,8 +171,53 @@ public sealed class PreparationTests
         await using var f = new DatabaseFixture(); await f.Initialize("20261012215959_VideoFrameSampling"); using var folder = new Folder(); var id = await Prepare(f, folder);
         var fileHashes = Directory.GetFiles(folder.Output, "*", SearchOption.AllDirectories).ToDictionary(x => x, x => Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(x))));
         await using var db = await f.Factory.CreateDbContextAsync(); await db.Database.MigrateAsync(); await db.Database.MigrateAsync(); Assert.Empty(await db.PreparationReviews.ToListAsync()); Assert.Empty(await db.PreparationValidations.ToListAsync()); Assert.Empty(await db.PreparationAudits.ToListAsync());
-        Assert.Equal(9, (await db.Database.GetAppliedMigrationsAsync()).Count()); Assert.Equal(Rights, (await db.ImportRights.SingleAsync()).Details); Assert.True((await Service(f, folder).GetAsync(id, 5, default))!.Snapshot.IsReady);
+        Assert.Equal(10, (await db.Database.GetAppliedMigrationsAsync()).Count()); Assert.Equal(Rights, (await db.ImportRights.SingleAsync()).Details); Assert.True((await Service(f, folder).GetAsync(id, 5, default))!.Snapshot.IsReady);
         foreach (var entry in fileHashes) Assert.Equal(entry.Value, Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(entry.Key)))); Assert.Single(await db.FrameSamples.ToListAsync()); Assert.Single(await db.AudioExtractions.ToListAsync());
+    }
+    static async Task<SubtitleExtraction> ExtractSubtitle(DatabaseFixture f, Folder folder, Guid id, string key)
+    {
+        f.Clock.Advance(TimeSpan.FromSeconds(1));
+        var media = new SelectedSubtitleAccess(new PostgresStreamStore(f.Factory, f.Clock), folder.Verifier);
+        var source = (await media.GetAsync(id, default))!; var store = new PostgresSubtitleStore(f.Factory, media, folder.Subtitles, f.Clock);
+        var created = (await new SubtitleService(store, media, folder.Subtitles).CreateAsync(id, new(key, source.SelectionVersion, "operator"), default))!;
+        var lease = (await f.Store.ClaimAsync("worker", TimeSpan.FromSeconds(30), default))!;
+        await new SubtitleExecutor(store, media, folder.Subtitles, new FfmpegSubtitleExtractor(Options.Create(new SubtitleOptions { FfmpegPath = Environment.GetEnvironmentVariable("TEST_FFMPEG")! }))).ExecuteAsync(lease, default);
+        return (await store.GetAsync(created.Extraction.Id, default))!.Extraction;
+    }
+    [PostgresFrameFact]
+    public async Task Selected_subtitle_requires_extraction_and_held_real_srt_checks_record_corruption_and_missing_bytes()
+    {
+        await using var f = new DatabaseFixture(); await f.Initialize(); using var folder = new Folder(); var id = await Prepare(f, folder, subtitle: true);
+        var initial = (await Service(f, folder).GetAsync(id, 5, default))!; Assert.False(initial.Snapshot.IsReady); Assert.Contains("selected-subtitle-required", initial.Snapshot.ReadinessIssues);
+        await Assert.ThrowsAsync<ImportConflictException>(() => Service(f, folder).ValidateAsync(id, Request(initial), default));
+        var subtitle = await ExtractSubtitle(f, folder, id, "subtitle"); var validated = await Validate(f, folder, id);
+        Assert.Equal(subtitle.Id, validated.LatestValidation!.Validation.Binding.SubtitleId); Assert.True(validated.LatestValidation.Validation.Passed); Assert.Single(validated.Snapshot.SubtitleCues!);
+        Assert.Equal(PreparationStatus.Approved, (await Service(f, folder).DecideAsync(id, Decision(validated), default))!.EffectiveStatus);
+        var path = Path.Combine(folder.Output, "subtitle-v1", subtitle.Id.ToString("N"), subtitle.ArtifactToken!.Value.ToString("N") + ".srt"); var original = File.ReadAllBytes(path);
+        await using (var check = await folder.Checker(f).CheckAsync(validated.Snapshot, default))
+        {
+            Assert.Empty(check.Issues);
+            if (OperatingSystem.IsWindows()) Assert.Throws<IOException>(() => File.WriteAllText(path, "blocked while checked"));
+        }
+        var corrupted = original.ToArray(); corrupted[40] = (byte)'X'; File.WriteAllBytes(path, corrupted);
+        var current = (await Service(f, folder).GetAsync(id, 5, default))!;
+        await Assert.ThrowsAsync<ImportConflictException>(() => Service(f, folder).DecideAsync(id, Decision(current), default));
+        var failed = await Validate(f, folder, id, "corrupt"); Assert.False(failed.LatestValidation!.Validation.Passed); Assert.Contains(failed.LatestValidation.Issues, x => x.Target == "subtitle"); Assert.Equal(PreparationStatus.Stale, failed.EffectiveStatus);
+        File.WriteAllBytes(path, original); File.Delete(path); failed = await Validate(f, folder, id, "missing");
+        Assert.Contains(failed.LatestValidation!.Issues, x => x.Target == "subtitle" && x.Code == "subtitle-artifact-unavailable");
+    }
+    [PostgresFrameFact]
+    public async Task New_subtitle_artifact_stales_approval_and_racing_publication_cannot_approve_old_snapshot()
+    {
+        await using var f = new DatabaseFixture(); await f.Initialize(); using var folder = new Folder(); var id = await Prepare(f, folder, subtitle: true);
+        await ExtractSubtitle(f, folder, id, "one"); var view = await Validate(f, folder, id); await Service(f, folder).DecideAsync(id, Decision(view), default);
+        var old = view.Snapshot.Subtitle!.Id; await ExtractSubtitle(f, folder, id, "two"); view = (await Service(f, folder).GetAsync(id, 5, default))!;
+        Assert.NotEqual(old, view.Snapshot.Subtitle!.Id); Assert.Equal(PreparationStatus.Stale, view.EffectiveStatus); Assert.True(view.NeedsValidation);
+        view = await Validate(f, folder, id, "new-check");
+        var checker = new AfterCheck(folder.Checker(f), async () => { await ExtractSubtitle(f, folder, id, "during-approval"); });
+        var service = new PreparationService(Store(f), folder.Media(f), checker);
+        await Assert.ThrowsAsync<ImportConflictException>(() => service.DecideAsync(id, Decision(view), default));
+        Assert.Equal(PreparationStatus.Stale, (await Service(f, folder).GetAsync(id, 5, default))!.EffectiveStatus);
     }
     sealed class AfterCheck(IPreparationChecker inner, Func<Task> change) : IPreparationChecker
     {
@@ -192,7 +237,8 @@ public sealed class PreparationTests
             var audio = Options.Create(new AudioOptions { Root = Output, FfmpegPath = Environment.GetEnvironmentVariable("TEST_FFMPEG")! }); Audio = new(audio, media); AudioExtractor = new(audio);
             var frames = Options.Create(new FrameOptions { Root = Output, FfmpegPath = Environment.GetEnvironmentVariable("TEST_FFMPEG")! }); Frames = new(frames, media); FrameExtractor = new(frames);
         }
-        public PreparationMediaAccess Media(DatabaseFixture f) => new(f.Factory, Verifier); public PreparationChecker Checker(DatabaseFixture f) => new(Media(f), Audio, Frames, Options.Create(new PreparationOptions())); public void Dispose() => Directory.Delete(Root, true);
+        public LocalSubtitleArtifacts Subtitles => new(Options.Create(new SubtitleOptions { Root = Output }), Options.Create(new MediaOptions { Folders = new() { ["library"] = Library } }));
+        public PreparationMediaAccess Media(DatabaseFixture f) => new(f.Factory, Verifier); public PreparationChecker Checker(DatabaseFixture f) => new(Media(f), Audio, Frames, Options.Create(new PreparationOptions()), Subtitles); public void Dispose() => Directory.Delete(Root, true);
     }
 }
 

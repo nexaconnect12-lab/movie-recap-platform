@@ -30,6 +30,10 @@ public static class Registration
         services.AddOptions<SceneOptions>().Bind(configuration.GetSection("Scenes")).Validate(x => x.IsValid(), "Invalid scene configuration").ValidateOnStart();
         services.AddSingleton<ISceneStore, PostgresSceneStore>(); services.AddSingleton<ISceneDetector, PySceneDetectAdapter>();
         services.AddSingleton<SceneService>(); services.AddSingleton<SceneExecutor>();
+        services.AddSingleton<ISelectedSubtitleAccess, SelectedSubtitleAccess>();
+        services.AddOptions<SubtitleOptions>().Bind(configuration.GetSection("Subtitles")).Validate(x => x.IsValid(), "Invalid subtitle configuration").ValidateOnStart();
+        services.AddSingleton<ISubtitleArtifacts, LocalSubtitleArtifacts>(); services.AddSingleton<ISubtitleExtractor, FfmpegSubtitleExtractor>(); services.AddSingleton<ISubtitleStore, PostgresSubtitleStore>();
+        services.AddSingleton<SubtitleService>(); services.AddSingleton<SubtitleExecutor>();
         services.AddSingleton<ISelectedAudioAccess, SelectedAudioAccess>();
         services.AddOptions<AudioOptions>().Bind(configuration.GetSection("Audio")).Validate(x => x.IsValid(), "Invalid audio configuration").ValidateOnStart();
         services.AddSingleton<IAudioArtifacts, LocalAudioArtifacts>(); services.AddSingleton<IAudioExtractor, FfmpegAudioExtractor>(); services.AddSingleton<IAudioStore, PostgresAudioStore>();
@@ -64,6 +68,8 @@ public sealed class DatabaseHealth(IDbContextFactory<PlatformDbContext> factory)
             await db.SelectionAudits.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             await db.SceneAnalyses.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             await db.MovieScenes.AsNoTracking().Select(x => x.Ordinal).Take(1).ToListAsync(ct);
+            await db.SubtitleExtractions.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
+            await db.SubtitleCues.AsNoTracking().Select(x => x.Ordinal).Take(1).ToListAsync(ct);
             await db.AudioExtractions.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             await db.FrameSamplings.AsNoTracking().Select(x => x.Id).Take(1).ToListAsync(ct);
             await db.FrameSamples.AsNoTracking().Select(x => x.Ordinal).Take(1).ToListAsync(ct);

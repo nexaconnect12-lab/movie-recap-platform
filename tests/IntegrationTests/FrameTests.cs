@@ -175,7 +175,7 @@ public sealed class FrameTests
         // Actual prior-schema use case creates a queued job; no successful audio is fabricated.
         await using var db = await f.Factory.CreateDbContextAsync(); await db.Database.MigrateAsync(); await db.Database.MigrateAsync();
         Assert.Empty(await db.FrameSamplings.ToListAsync()); Assert.Empty(await db.FrameSamples.ToListAsync()); Assert.Equal(scene.Scenes.Count, await db.MovieScenes.CountAsync()); Assert.Equal(audio.Extraction.Id, (await db.AudioExtractions.SingleAsync()).Id);
-        Assert.Equal(scene.Analysis.Id, (await db.SceneAnalyses.SingleAsync()).Id); Assert.Equal(Rights, (await db.ImportRights.SingleAsync()).Details); Assert.Equal(9, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(scene.Analysis.Id, (await db.SceneAnalyses.SingleAsync()).Id); Assert.Equal(Rights, (await db.ImportRights.SingleAsync()).Details); Assert.Equal(10, (await db.Database.GetAppliedMigrationsAsync()).Count());
     }
     public static (byte R, byte G, byte B) Center(byte[] png) { var pixels = PngFrames.DecodeRgb(png); var index = (90 * 320 + 160) * 3; return (pixels[index], pixels[index + 1], pixels[index + 2]); }
     static async Task ChangeSelection(DatabaseFixture f, Folder folder, Guid id)

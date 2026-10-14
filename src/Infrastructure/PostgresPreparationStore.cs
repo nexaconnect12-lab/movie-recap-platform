@@ -25,7 +25,10 @@ public sealed class PostgresPreparationStore(IDbContextFactory<PlatformDbContext
         var samples = frame is null ? [] : await db.FrameSamples.AsNoTracking().Where(x => x.SamplingId == frame.Id).OrderBy(x => x.Ordinal).ToListAsync(ct);
         var audio = media.AudioIndex is null ? null : await db.AudioExtractions.AsNoTracking().Where(x => x.ImportId == media.ImportId && x.AssetId == media.AssetId && x.InventoryVersion == media.InventoryVersion && x.SelectionVersion == media.SelectionVersion && x.AudioIndex == media.AudioIndex && x.SourceSha256 == media.Sha256 && x.SourceSizeBytes == media.SizeBytes && x.CompletedAt != null)
             .OrderByDescending(x => x.CompletedAt).ThenByDescending(x => x.Id).FirstOrDefaultAsync(ct);
-        return new(media, scene, scenes, audio, frame, samples);
+        var subtitle = media.SubtitleIndex is null ? null : await db.SubtitleExtractions.AsNoTracking().Where(x => x.ImportId == media.ImportId && x.AssetId == media.AssetId && x.InventoryVersion == media.InventoryVersion && x.SelectionVersion == media.SelectionVersion && x.SubtitleIndex == media.SubtitleIndex && x.SourceSha256 == media.Sha256 && x.SourceSizeBytes == media.SizeBytes && x.CompletedAt != null)
+            .OrderByDescending(x => x.CompletedAt).ThenByDescending(x => x.Id).FirstOrDefaultAsync(ct);
+        var cues = subtitle is null ? [] : await db.SubtitleCues.AsNoTracking().Where(x => x.ExtractionId == subtitle.Id).OrderBy(x => x.Ordinal).ToListAsync(ct);
+        return new(media, scene, scenes, audio, frame, samples, subtitle, cues);
     }
     public async Task<PreparationOverview> GetAsync(PreparationMedia media, int limit, CancellationToken ct)
     {
@@ -41,7 +44,8 @@ public sealed class PostgresPreparationStore(IDbContextFactory<PlatformDbContext
         var audios = await db.AudioExtractions.AsNoTracking().Where(x => x.ImportId == media.ImportId).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Take(limit).Select(x => new { x.Id, x.JobId }).ToListAsync(ct);
         var frames = await db.FrameSamplings.AsNoTracking().Where(x => db.SceneAnalyses.Any(a => a.Id == x.SceneAnalysisId && a.ImportId == media.ImportId)).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Take(limit).Select(x => new { x.Id, x.JobId }).ToListAsync(ct);
         var validations = await db.PreparationValidations.AsNoTracking().Where(x => x.ImportId == media.ImportId).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Take(limit).Select(x => new { x.Id, x.JobId }).ToListAsync(ct);
-        var history = new List<PreparationOperation>(); foreach (var row in scenes.Concat(audios).Concat(frames).Concat(validations)) { var job = (await jobs.GetAsync(row.JobId, ct))!; history.Add(new(row.Id, job.Kind, job)); }
+        var subtitles = await db.SubtitleExtractions.AsNoTracking().Where(x => x.ImportId == media.ImportId).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Take(limit).Select(x => new { x.Id, x.JobId }).ToListAsync(ct);
+        var history = new List<PreparationOperation>(); foreach (var row in scenes.Concat(audios).Concat(frames).Concat(subtitles).Concat(validations)) { var job = (await jobs.GetAsync(row.JobId, ct))!; history.Add(new(row.Id, job.Kind, job)); }
         return new(snapshot, review, review?.EffectiveStatus(snapshot.SnapshotHash) ?? PreparationStatus.Pending, !snapshot.IsReady || review?.ValidationPassed != true || review.ValidationSnapshotHash != snapshot.SnapshotHash, validation, history);
     }
     public async Task<PreparationValidationView?> ReplayAsync(Guid importId, RequestPreparationValidation request, CancellationToken ct)

@@ -89,3 +89,11 @@ public sealed class StreamInspectionExecutor(IStreamStore store, IMediaInspector
         progress?.Invoke(90); await store.CompleteInspectionAsync(lease, media, ct);
     }
 }
+
+public sealed record SelectedSubtitleSnapshot(Guid ImportId, Guid AssetId, Guid InventoryVersion, Guid SelectionVersion, int SubtitleIndex, string Sha256, long SizeBytes, string Codec);
+public interface ISelectedSubtitleAccess
+{
+    Task<SelectedSubtitleSnapshot?> GetAsync(Guid importId, CancellationToken ct);
+    Task<IVerifiedMediaSource> OpenAsync(SelectedSubtitleSnapshot snapshot, CancellationToken ct);
+}
+public interface ISelectedSubtitleTransaction { Task RequireAsync(SelectedSubtitleSnapshot snapshot, CancellationToken ct); }

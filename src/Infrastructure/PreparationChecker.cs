@@ -5,7 +5,7 @@ using MovieRecap.VideoProcessing.Domain;
 namespace MovieRecap.Infrastructure;
 
 public sealed class PreparationOptions { public int CheckTimeoutSeconds { get; set; } = 3600; public bool IsValid() => CheckTimeoutSeconds is >= 1 and <= 86400; }
-public sealed class PreparationChecker(IPreparationMediaAccess media, IAudioArtifacts audio, IFrameArtifacts frames, IOptions<PreparationOptions> options) : IPreparationChecker
+public sealed class PreparationChecker(IPreparationMediaAccess media, IAudioArtifacts audio, IFrameArtifacts frames, IOptions<PreparationOptions> options, ISubtitleArtifacts? subtitles = null) : IPreparationChecker
 {
     public async Task<IPreparationCheck> CheckAsync(PreparationSnapshot snapshot, CancellationToken ct)
     {
@@ -18,6 +18,15 @@ public sealed class PreparationChecker(IPreparationMediaAccess media, IAudioArti
             {
                 try { check.Streams.Add(await audio.OpenAsync(a.Id, new(a.ArtifactToken!.Value, a.ArtifactSha256!, a.ArtifactSizeBytes!.Value, new(a.Samples!.Value, a.FfmpegVersion!)), deadline.Token)); }
                 catch (AudioException e) { check.Errors.Add(new("audio", e.Code)); }
+            }
+            if (snapshot.Subtitle is { } s)
+            {
+                try
+                {
+                    if (subtitles is null) throw new SubtitleException("subtitle-artifact-root-not-configured");
+                    check.Streams.Add(await subtitles.OpenAsync(s.Id, new(s.ArtifactToken!.Value, s.ArtifactSha256!, s.ArtifactSizeBytes!.Value, new(snapshot.SubtitleCues!.Select(x => x.Data).ToArray(), s.FfmpegVersion!)), deadline.Token));
+                }
+                catch (SubtitleException e) { check.Errors.Add(new("subtitle", e.Code)); }
             }
             foreach (var frame in snapshot.Samples)
             {

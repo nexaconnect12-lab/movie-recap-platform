@@ -17,7 +17,9 @@ Phase 2 preparation slice: combined current preparation view, real source/WAV/PN
 
 Phase 2 activation: application database migrated, isolated hosts activated, protected backups restore-verified, and real owned-fixture preparation accepted with cancellation/recovery/staleness/duplicate/source-preservation checks. See [activation evidence](phase-2-activation.md) and [deployment guide](../deployment/phase-2-activation.md).
 
-Next work: scope remaining Phase 2 preprocessing requirements, such as selected subtitle extraction. ASR/AI/TTS/rendering/publishing remain separately scoped; this does not claim all Phase 2 capabilities complete or authorize Phase 3.
+Phase 2 subtitles: real selected embedded SubRip extraction into validated UTF-8 SRT/cues, managed fenced artifacts and subtitle-aware preparation checks/staleness. See phase-2-subtitles.md and phase-2-subtitles-verification.md. Activated hosts/database are preserved.
+
+Next work: separately scoped activation/acceptance of the subtitle slice. Other codecs/preprocessing and ASR/AI/TTS/rendering/publishing remain separate scope; this does not claim all Phase 2 capabilities complete or authorize Phase 3.
 
 Phase 3: chunked ASR/frame analysis, grounded outline, recap generation/versioned editor/approval.
 Phase 4: Burmese language adapter, verified real TTS voice, chunks/normalization, aligned subtitles and exports.

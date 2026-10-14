@@ -27,7 +27,7 @@ var app = builder.Build();
 app.UseExceptionHandler(error => error.Run(async context =>
 {
     var ex = context.Features.Get<IExceptionHandlerFeature>()!.Error;
-    var status = ex switch { BadHttpRequestException requestError => requestError.StatusCode, System.Text.Json.JsonException or ValidationException or ImportException or SceneException or AudioException or FrameException or PreparationException => 400, JobConflictException or ImportConflictException or DbUpdateConcurrencyException => 409, _ => 500 };
+    var status = ex switch { BadHttpRequestException requestError => requestError.StatusCode, System.Text.Json.JsonException or ValidationException or ImportException or SceneException or AudioException or SubtitleException or FrameException or PreparationException => 400, JobConflictException or ImportConflictException or DbUpdateConcurrencyException => 409, _ => 500 };
     if (status == 500) app.Logger.LogError(ex, "Request failed {TraceId}", context.TraceIdentifier);
     await Results.Problem(statusCode: status, title: status == 500 ? "Internal server error" : ex is BadHttpRequestException or System.Text.Json.JsonException ? "Invalid request body" : ex.Message,
         extensions: ex is ValidationException v ? new Dictionary<string, object?> { ["errors"] = v.Errors.Select(e => new { e.PropertyName, e.ErrorMessage }) } : null).ExecuteAsync(context);
@@ -57,6 +57,21 @@ imports.MapGet("/{id:guid}/preparation/audit", async (Guid id, int? limit, IPrep
     await media.GetAsync(id, ct) is null ? Results.NotFound() : Results.Ok(await store.AuditAsync(id, limit ?? 50, ct)));
 app.MapGet("/api/video/preparation-validations/{id:guid}", async (Guid id, IPreparationStore store, CancellationToken ct) =>
     await store.ValidationAsync(id, ct) is { } result ? Results.Ok(result) : Results.NotFound()).WithTags("Preparation review");
+
+imports.MapPost("/{id:guid}/subtitle-extractions", async (Guid id, RequestSubtitle request, SubtitleService service, CancellationToken ct) =>
+{
+    var result = await service.CreateAsync(id, request, ct); return result is null ? Results.NotFound() : Results.Created($"/api/video/subtitle-extractions/{result.Extraction.Id}", result);
+});
+imports.MapGet("/{id:guid}/subtitle-extractions", async (Guid id, int? limit, IStreamStore media, ISubtitleStore store, CancellationToken ct) =>
+    await media.GetAsync(id, ct) is null ? Results.NotFound() : Results.Ok(await store.ListAsync(id, limit ?? 50, ct)));
+var subtitles = app.MapGroup("/api/video/subtitle-extractions").WithTags("Subtitle extraction");
+subtitles.MapGet("/{id:guid}", async (Guid id, ISubtitleStore store, CancellationToken ct) => await store.GetAsync(id, ct) is { } result ? Results.Ok(result) : Results.NotFound());
+subtitles.MapGet("/{id:guid}/artifact", async (Guid id, SubtitleService service, CancellationToken ct) =>
+{
+    var stream = await service.DownloadAsync(id, ct); return stream is null ? Results.NotFound() : Results.Stream(stream, "application/x-subrip; charset=utf-8", id.ToString("N") + ".srt");
+});
+subtitles.MapPost("/{id:guid}/cleanup", async (Guid id, ISubtitleStore store, CancellationToken ct) =>
+    await store.GetAsync(id, ct) is null ? Results.NotFound() : Results.Ok(new { removedFiles = await store.CleanupAsync(id, ct) }));
 imports.MapPost("/{id:guid}/audio-extractions", async (Guid id, RequestAudio request, AudioService service, CancellationToken ct) =>
 {
     var result = await service.CreateAsync(id, request, ct); return result is null ? Results.NotFound() : Results.Created($"/api/video/audio-extractions/{result.Extraction.Id}", result);

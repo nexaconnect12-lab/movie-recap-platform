@@ -19,6 +19,8 @@ A combined preparation API now shows current stream choices, completed scenes/au
 
 ## Local startup (Windows PowerShell 7)
 
+Selected embedded SubRip extraction now produces real validated UTF-8 SRT artifacts and persisted timed cues, with job lifecycle/history/download/cleanup and subtitle-aware preparation checks. Apply additive `VideoSubtitleExtraction` and configure matching `Subtitles__Root` plus real worker `Subtitles__FfmpegPath` when activating this slice. The retained activated release remains at the earlier nine-migration version. See [subtitle API/configuration](docs/api/subtitle-extraction.md), [implementation](docs/implementation/phase-2-subtitles.md) and [verification](docs/implementation/phase-2-subtitles-verification.md). Other codecs, OCR, translation and later phases remain outside this slice.
+
 The local Phase 2 release has now been explicitly activated with shared rehearsal roots and real media tools. See [activation, host management and rollback](docs/deployment/phase-2-activation.md) and [activation acceptance results](docs/implementation/phase-2-activation.md). Use `scripts/Set-ActivatedEnvironment.ps1` and `scripts/Start-ActivatedHosts.ps1` for that retained release. The original foundation startup below remains a from-source setup example.
 Prerequisites: .NET 10 SDK and Docker Desktop with Linux containers. Run these commands from this folder:
 

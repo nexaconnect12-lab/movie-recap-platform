@@ -8,16 +8,16 @@ public sealed record RequestPreparationValidation(string IdempotencyKey, string 
 public sealed record DecidePreparation(Guid Version, string SnapshotHash, PreparationStatus Decision, string RequestedBy, string Notes);
 public sealed record PreparationValidationView(PreparationValidation Validation, JobView Job, IReadOnlyList<PreparationIssue> Issues);
 public sealed record PreparationOperation(Guid Id, string Kind, JobView Job);
-public sealed record PreparationSnapshot(PreparationMedia Media, SceneAnalysis? Scene, IReadOnlyList<MovieScene> Scenes, AudioExtraction? Audio, FrameSampling? Frames, IReadOnlyList<FrameSample> Samples)
+public sealed record PreparationSnapshot(PreparationMedia Media, SceneAnalysis? Scene, IReadOnlyList<MovieScene> Scenes, AudioExtraction? Audio, FrameSampling? Frames, IReadOnlyList<FrameSample> Samples, SubtitleExtraction? Subtitle = null, IReadOnlyList<SubtitleCue>? SubtitleCues = null)
 {
-    public PreparationBinding Binding => new(Media.ImportId, Media.AssetId, Media.InventoryVersion, Media.SelectionVersion, Media.VideoIndex, Media.AudioIndex, Media.SubtitleIndex, Media.Sha256, Media.SizeBytes, Scene?.Id, Audio?.Id, Frames?.Id);
+    public PreparationBinding Binding => new(Media.ImportId, Media.AssetId, Media.InventoryVersion, Media.SelectionVersion, Media.VideoIndex, Media.AudioIndex, Media.SubtitleIndex, Media.Sha256, Media.SizeBytes, Scene?.Id, Audio?.Id, Frames?.Id, Subtitle?.Id);
     public string SnapshotHash => Binding.Hash;
     public IReadOnlyList<string> ReadinessIssues
     {
         get
         {
             var issues = new List<string>(); if (!Media.ImportCompleted) issues.Add("import-incomplete"); if (Media.InventoryVersion is null) issues.Add("streams-uninspected"); if (Media.VideoIndex is null) issues.Add("video-not-selected");
-            if (Scene is null || Scenes.Count == 0) issues.Add("scenes-required"); if (Frames is null || Samples.Count is < 1 or > 300 || Samples.Any(x => x.Sha256 is null)) issues.Add("scene-frames-required"); if (Media.AudioIndex is not null && Audio is null) issues.Add("selected-audio-required"); return issues;
+            if (Scene is null || Scenes.Count == 0) issues.Add("scenes-required"); if (Frames is null || Samples.Count is < 1 or > 300 || Samples.Any(x => x.Sha256 is null)) issues.Add("scene-frames-required"); if (Media.AudioIndex is not null && Audio is null) issues.Add("selected-audio-required"); if (Media.SubtitleIndex is not null && (Subtitle is null || SubtitleCues?.Count != Subtitle.CueCount)) issues.Add("selected-subtitle-required"); return issues;
         }
     }
     public bool IsReady => Binding.IsReady && ReadinessIssues.Count == 0;

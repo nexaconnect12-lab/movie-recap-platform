@@ -5,12 +5,12 @@ namespace MovieRecap.VideoProcessing.Domain;
 
 public enum PreparationStatus { Pending, Approved, Rejected, Stale }
 public sealed record PreparationBinding(Guid ImportId, Guid? AssetId, Guid? InventoryVersion, Guid? SelectionVersion, int? VideoIndex, int? AudioIndex, int? SubtitleIndex,
-    string? SourceSha256, long? SourceSizeBytes, Guid? SceneId, Guid? AudioId, Guid? FrameId)
+    string? SourceSha256, long? SourceSizeBytes, Guid? SceneId, Guid? AudioId, Guid? FrameId, Guid? SubtitleId = null, int SchemaVersion = 2)
 {
     public string Hash => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('|', "preparation-v1", ImportId.ToString("N"), AssetId?.ToString("N"), InventoryVersion?.ToString("N"), SelectionVersion?.ToString("N"),
-        VideoIndex?.ToString(CultureInfo.InvariantCulture), AudioIndex?.ToString(CultureInfo.InvariantCulture), SubtitleIndex?.ToString(CultureInfo.InvariantCulture), SourceSha256, SourceSizeBytes?.ToString(CultureInfo.InvariantCulture), SceneId?.ToString("N"), AudioId?.ToString("N"), FrameId?.ToString("N")))));
+        VideoIndex?.ToString(CultureInfo.InvariantCulture), AudioIndex?.ToString(CultureInfo.InvariantCulture), SubtitleIndex?.ToString(CultureInfo.InvariantCulture), SourceSha256, SourceSizeBytes?.ToString(CultureInfo.InvariantCulture), SceneId?.ToString("N"), AudioId?.ToString("N"), FrameId?.ToString("N")) + (SchemaVersion == 1 || SubtitleIndex is null ? "" : "|subtitle-v1|" + SubtitleId?.ToString("N")))));
     public bool IsReady => ImportId != Guid.Empty && AssetId is { } asset && asset != Guid.Empty && InventoryVersion is { } inventory && inventory != Guid.Empty && SelectionVersion is { } selection && selection != Guid.Empty && VideoIndex is >= 0 &&
-        PreparationValidation.ValidHash(SourceSha256) && SourceSizeBytes > 0 && SceneId is { } scene && scene != Guid.Empty && FrameId is { } frame && frame != Guid.Empty && (AudioIndex is null || AudioIndex >= 0 && AudioId is { } audio && audio != Guid.Empty) && (SubtitleIndex is null || SubtitleIndex >= 0);
+        SchemaVersion is 1 or 2 && PreparationValidation.ValidHash(SourceSha256) && SourceSizeBytes > 0 && SceneId is { } scene && scene != Guid.Empty && FrameId is { } frame && frame != Guid.Empty && (AudioIndex is null || AudioIndex >= 0 && AudioId is { } audio && audio != Guid.Empty) && (SubtitleIndex is null || SubtitleIndex >= 0 && (SchemaVersion == 1 || SubtitleId is { } subtitle && subtitle != Guid.Empty));
 }
 public sealed record PreparationIssue(string Target, string Code);
 public sealed class PreparationValidation
@@ -36,7 +36,7 @@ public sealed class PreparationValidation
     public void Complete(IReadOnlyList<PreparationIssue> issues, DateTimeOffset now)
     {
         if (CompletedAt is not null) throw new InvalidOperationException("Validation already completed.");
-        if (issues.Count > 302 || issues.Any(x => x is null || string.IsNullOrWhiteSpace(x.Target) || x.Target.Length > 64 || !System.Text.RegularExpressions.Regex.IsMatch(x.Code ?? "", "^[a-z][a-z0-9-]{0,127}$"))) throw new ArgumentException("Invalid validation issues.");
+        if (issues.Count > 303 || issues.Any(x => x is null || string.IsNullOrWhiteSpace(x.Target) || x.Target.Length > 64 || !System.Text.RegularExpressions.Regex.IsMatch(x.Code ?? "", "^[a-z][a-z0-9-]{0,127}$"))) throw new ArgumentException("Invalid validation issues.");
         IssuesJson = System.Text.Json.JsonSerializer.Serialize(issues); if (IssuesJson.Length > 65536) throw new ArgumentException("Validation report too large."); Passed = issues.Count == 0; CompletedAt = now;
     }
     public static bool ValidHash(string? hash) => hash is { Length: 64 } && hash.All(c => "0123456789abcdef".Contains(c));
